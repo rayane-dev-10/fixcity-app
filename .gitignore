@@ -1,1 +1,77 @@
+# ==========================================
+# GOBAL / SYSTEM
+# ==========================================
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
 
+# ==========================================
+# BACKEND (Python DRF)
+# ==========================================
+# Environnements virtuels (Crucial sur machine locale)
+.venv/
+venv/
+ENV/
+env/
+/include/
+/lib/
+/bin/
+/share/
+pyvenv.cfg
+
+# Cache Python
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Django
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/staticfiles/
+/media/
+
+# ==========================================
+# DATABASE (PostGIS local)
+# ==========================================
+# On ignore les dumps de données et les fichiers de config DB
+*.sql
+*.dump
+.pgpass
+pg_service.conf
+
+# ==========================================
+# FRONTEND (Flutter / Dart)
+# ==========================================
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Spécifique Android/iOS (fichiers générés localement)
+/android/local.properties
+/android/key.properties
+/android/app/src/main/res/raw/
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+/ios/Runner/GeneratedPluginRegistrant.h
+/ios/Runner/GeneratedPluginRegistrant.m
+
+# ==========================================
+# SECRETS (Clés API, Accès DB)
+# ==========================================
+.env
+.env.local
+secrets.json
+
+# ==========================================
+# IDE (VS Code / Android Studio)
+# ==========================================
+.vscode/
+.idea/
+*.iml

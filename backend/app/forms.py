@@ -6,12 +6,11 @@ class MyUserCreationForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "first_name", "last_name", "is_citoyen", "is_app_admin")
+        fields = ("email", "first_name", "last_name","is_staff", "is_citoyen", "is_app_admin")
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        # Indispensable pour que le mot de passe ne soit pas en clair en base
-        user.set_password(self.cleaned_data["password"])
+        user.set_password(self.cleaned_data["password"])#on hash le mot de passe avant de sauvegarder l'utilisateur
         if commit:
             user.save()
         return user

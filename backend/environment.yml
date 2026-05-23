@@ -1,0 +1,25 @@
+name: devenv
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - gdal=3.12.3
+  - geos=3.14.1
+  - libspatialite=5.1.0
+  - pip=26.0.1
+  - proj=9.8.1
+  - python=3.11.14
+  - pip:
+      - django==5.2.13
+      - django-filter==25.2
+      - django-leaflet==0.33.0
+      - djangorestframework==3.16.1
+      - djangorestframework-gis==1.2.0
+      - djangorestframework-simplejwt==5.5.1
+      - drf-extra-fields==3.7.0
+      - drf-spectacular==0.29.0
+      - psycopg2==2.9.11
+      - pyjwt==2.12.1
+      - python-dotenv==1.2.2
+      - firebase-admin==7.4.0
+      - django-anymail==15.0

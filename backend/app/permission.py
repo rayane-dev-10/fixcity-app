@@ -7,4 +7,4 @@ class IsCitoyenUser(permissions.BasePermission):
 
 class IsAppAdminUser(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_citoyen   
+        return request.user.is_app_admin   

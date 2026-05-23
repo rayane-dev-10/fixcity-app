@@ -9,20 +9,20 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
+import json
 import os
+from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+import firebase_admin
+from firebase_admin import credentials
 load_dotenv()
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# Chemin vers la racine de votre environnement conda
-# D'après votre log précédent : C:\Users\fegho\Documents\fixcity-app\backend\venv
-BASE_VENV = r'C:\Users\fegho\Documents\fixcity-app\backend\venv'
-
-# 1. Ajout du dossier bin au PATH système pour que Django trouve les dépendances de GDAL
+BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_VENV = BASE_DIR / "devenv"
 os.environ['PATH'] = os.path.join(BASE_VENV, 'Library', 'bin') + os.pathsep + os.environ['PATH']
-
 # 2. Définition des chemins vers les bibliothèques spécifiques
 GDAL_LIBRARY_PATH = os.path.join(BASE_VENV, 'Library', 'bin', 'gdal.dll')
 GEOS_LIBRARY_PATH = os.path.join(BASE_VENV, 'Library', 'bin', 'geos_c.dll')
@@ -47,15 +47,22 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_spectacular',
     'rest_framework_gis',
     'app',
     'django.contrib.gis',
     'leaflet',
+    'firebase_admin',
     
 ]
 
-rest_framework = {
+# CONFIGURATION DE FIREBASE ADMIN SDK
+cred = credentials.Certificate(json.loads(os.getenv('SERVICE_ACCOUNT_KEY')))
+firebase_admin.initialize_app(cred)
+
+REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework_simplejwt.authentication.JWTAuthentication',],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 AUTH_USER_MODEL='app.User'
@@ -182,9 +189,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'fr-fr'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Algiers'
 
 USE_I18N = True
 

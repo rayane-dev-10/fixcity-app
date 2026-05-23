@@ -8,7 +8,7 @@ from django.contrib.auth.models import BaseUserManager,AbstractUser
 class MyUserManager(BaseUserManager):
     def create_user(self, email, password, **extra_fields):
         if not email or not password:
-            raise ValueError("L'adresse email et mot de passe sont obligatoires")
+            raise ValueError("L'adresse mail et mot de passe sont obligatoires")
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -20,10 +20,10 @@ class MyUserManager(BaseUserManager):
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
 
-        if extra_fields.get('is_staff') is not True:
+        '''if extra_fields.get('is_staff') is not True:
             raise ValueError('Le superuser doit avoir is_staff=True.')
         if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Le superuser doit avoir is_superuser=True.')
+            raise ValueError('Le superuser doit avoir is_superuser=True.')'''
 
         return self.create_user(email, password, **extra_fields)
 
@@ -42,9 +42,10 @@ class User(AbstractUser):
     def __str__(self):
         return self.email
    
+
 class Organisation(models.Model):
-    nom = models.CharField(max_length=100)
-    categories=models.ManyToManyField('CategorieIncident', related_name='organisations')
+    nom = models.CharField(max_length=100,unique=True)
+    categories=models.ManyToManyField('CategorieIncident')
 
     def __str__(self):
         return self.nom
@@ -53,17 +54,17 @@ class Organisation(models.Model):
 
 
 class CategorieIncident(models.Model):
-    nom = models.CharField(max_length=100)
+    nom = models.CharField(max_length=100,unique=True)
 
     def __str__(self):
         return self.nom
 
 
 class Siege(models.Model):
-    nom = models.CharField(max_length=100)
+    nom = models.CharField(max_length=100,unique=True)
     localisation = models.PointField(srid=4326) 
-    commune = models.CharField(max_length=4, choices=Commune.choices)
-    wilaya = models.CharField(max_length=2, choices=Wilaya.choices)
+    commune = models.CharField(max_length=40, choices=Commune.choices)
+    wilaya = models.CharField(max_length=40, choices=Wilaya.choices)
     organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE)
 
     def __str__(self):
@@ -72,7 +73,7 @@ class Siege(models.Model):
 
 class Admin(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    siege = models.ForeignKey(Siege, on_delete=models.CASCADE)
+    siege = models.OneToOneField(Siege, on_delete=models.CASCADE, related_name='admin')# related_name permet d'accéder à l'admin d'un siège à partir du modèle Siege (siege.admin)
 
 
 
@@ -85,9 +86,10 @@ class Citoyen(models.Model):
 
 
 class Signalement(models.Model):
-    localisation = models.PointField(srid=4326) 
-    commune = models.CharField(max_length=20, choices=Commune.choices)
-    wilaya = models.CharField(max_length=20, choices=Wilaya.choices)
+    localisation = models.PointField(srid=4326)
+    adresseLisible = models.CharField(max_length=255)
+    commune = models.CharField(max_length=40, choices=Commune.choices)
+    wilaya = models.CharField(max_length=40, choices=Wilaya.choices)
     url_image = models.URLField()
     description = models.TextField(blank=True,null=True,default="")
     statut = models.CharField(max_length=20, choices=StatutSignalement.choices, default=StatutSignalement.EN_COURS)
@@ -96,3 +98,15 @@ class Signalement(models.Model):
     citoyen = models.ForeignKey(Citoyen, on_delete=models.CASCADE)
     siege = models.ForeignKey(Siege, on_delete=models.CASCADE)
 
+
+
+class UserDevice(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    deviceToken = models.TextField(unique=True) 
+    type = models.CharField(max_length=10, choices=(('android', 'Android'), ('ios', 'iOS')))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+
+    
+    

@@ -17,22 +17,22 @@ from .models import (
 @admin.register(User)
 class MyUserAdmin(UserAdmin):
     add_form=MyUserCreationForm
-    list_display = ('id', 'first_name', 'last_name', 'email','password', 'is_citoyen','is_app_admin','is_active')
+    list_display = ('id', 'first_name', 'last_name', 'email','password', 'is_citoyen','is_app_admin','is_staff','is_superuser','is_active')
     search_fields = ('nom', 'prenom', 'email')
-    list_filter = ('is_citoyen','is_app_admin')
+    list_filter = ('is_citoyen','is_app_admin','is_staff','is_superuser')
     ordering = ('email',)
     fieldsets = (
         (None, {'fields': ('first_name','last_name','email', 'password')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Dates', {'fields': ('last_login', 'date_joined')}),
     )
-    # Important : pour l'ajout d'un utilisateur via l'admin
+    #pour l'ajout d'un utilisateur via l'admin
     add_fieldsets=(
         (None, {
             'classes': ('wide',),
             'fields': ('first_name','last_name','email', 'password')
         }),
-        ('Permissions',{'fields':('is_citoyen','is_app_admin'),})
+        ('Permissions',{'fields':('is_citoyen','is_app_admin','is_staff'),})
     )
 
     def get_form(self, request, obj=None, **kwargs):

@@ -76,6 +76,7 @@ class Commune(models.TextChoices):
     AIT_TOUDERT = '1567', 'Aït Toudert'
   
 
-class StatutSignalement(models.TextChoices):
+class Statut(models.TextChoices):
+    NOUVEAU = 'NOUVEAU', 'Nouveau'
     EN_COURS = 'EN_COURS', 'En cours de traitement'
     RESOLU = 'RESOLU', 'Résolu'

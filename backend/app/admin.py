@@ -4,35 +4,33 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from leaflet.admin import LeafletGeoAdmin
 from .models import (
-    User,
-    Admin,
-    Citoyen,
-    Siege,
-    Signalement,
-    CategorieIncident,
-    Organisation,
+    OTP,
+    Utilisateur,
+    ServicePublique,
+    IncidentUrbain,
+    Categorie,
 
 )    
 # Register your models here.
-@admin.register(User)
+@admin.register(Utilisateur)
 class MyUserAdmin(UserAdmin):
     add_form=MyUserCreationForm
-    list_display = ('id', 'first_name', 'last_name', 'email','password', 'is_citoyen','is_app_admin','is_staff','is_superuser','is_active')
+    list_display = ('id', 'first_name', 'last_name', 'email','password', 'is_citoyen','is_agent','is_staff','is_active')
     search_fields = ('nom', 'prenom', 'email')
-    list_filter = ('is_citoyen','is_app_admin','is_staff','is_superuser')
+    list_filter = ('is_citoyen','is_agent','is_staff','is_active')
     ordering = ('email',)
     fieldsets = (
-        (None, {'fields': ('first_name','last_name','email', 'password')}),
-        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        (None, {'fields': ('first_name','last_name','email', 'password','service')}),
+        ('Permissions', {'fields': ('is_active', 'is_staff','is_superuser','is_agent', 'groups', 'user_permissions')}),
         ('Dates', {'fields': ('last_login', 'date_joined')}),
     )
     #pour l'ajout d'un utilisateur via l'admin
     add_fieldsets=(
         (None, {
             'classes': ('wide',),
-            'fields': ('first_name','last_name','email', 'password')
+            'fields': ('first_name','last_name','email', 'password','service')
         }),
-        ('Permissions',{'fields':('is_citoyen','is_app_admin','is_staff'),})
+        ('Permissions',{'fields':('is_citoyen','is_agent','is_staff'),})
     )
 
     def get_form(self, request, obj=None, **kwargs):
@@ -43,36 +41,22 @@ class MyUserAdmin(UserAdmin):
             form.base_fields['password'].widget = forms.PasswordInput()
         return form
     
-
-@admin.register(Organisation)
-class OrganisationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nom','get_categories')
-    list_filter=('categories',)
-
-    def get_categories(self, obj):#fonction pour afficher les categories d'une organisation
-        return ", ".join([cat.nom for cat in obj.categories.all()])
-    
-    get_categories.short_description = "Catégories"
+    class Media:
+        css = {
+            'all': ('css/admin_custom.css',) # On indique à Django de charger ce fichier CSS
+        }
     
 
-@admin.register(CategorieIncident)
+    
+@admin.register(Categorie)
 class CategorieIncidentAdmin(admin.ModelAdmin):
     list_display = ('id', 'nom')
     search_fields = ('nom',)
 
 
-@admin.register(Admin)
-class AdminAdmin(admin.ModelAdmin):
-    list_display = ('id', 'siege')
 
-
-@admin.register(Citoyen)
-class CitoyenAdmin(admin.ModelAdmin):
-    list_display = ('id','user')
-
-
-@admin.register(Signalement)
-class SignalementAdmin(LeafletGeoAdmin):
+@admin.register(IncidentUrbain)
+class IncidentUrbainAdmin(LeafletGeoAdmin):
     list_display = (
         'id',
         'url_image',
@@ -82,15 +66,36 @@ class SignalementAdmin(LeafletGeoAdmin):
         'statut',
         'categorie',
         'citoyen',
-        'siege',
-        'date_envoi'
+        'service',
+        'date_signalement'
     )
     list_filter = ('statut', 'commune', 'wilaya', 'categorie')
-    list_display_links=('url_image',)
-    ordering = ('-date_envoi',)
+    list_display_links=('id',)
+    ordering = ('date_signalement',)
+    class Media:
+        css = {
+            'all': ('css/admin_custom.css',) # On indique à Django de charger ce fichier CSS
+         }
 
 
-@admin.register(Siege)
-class SiegeAdmin(LeafletGeoAdmin):
-    list_display = ('id', 'nom', 'localisation', 'commune', 'wilaya', 'organisation')
+@admin.register(ServicePublique)
+class ServicePubliqueAdmin(LeafletGeoAdmin):
+    list_display = ('id', 'nom', 'localisation', 'commune', 'wilaya','get_categories')
     list_filter = ('commune', 'wilaya')
+    
+    class Media:
+        css = {
+            'all': ('css/admin_custom.css',) # On indique à Django de charger ce fichier CSS
+         }
+        
+
+    def get_categories(self, obj):
+        return ", ".join([categorie.nom for categorie in obj.categories.all()])
+
+    get_categories.short_description = 'Catégories'
+
+@admin.register(OTP)
+class OTPAdmin(admin.ModelAdmin):
+    list_display = ('id','email', 'hached_otp','created_at', 'expires_at')
+    list_filter = ('email',)
+    search_fields = ('email',)     

@@ -1,0 +1,55 @@
+/* Force le conteneur de la liste à afficher une barre de défilement horizontale */
+.selector .selector-available select, 
+.selector .selector-chosen select {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    width: 300px !important; /* Assure que les sélecteurs prennent toute la largeur disponible */
+}
+
+/* Optionnel : Empêche les textes longs de sauter à la ligne à l'intérieur des options */
+.selector .selector-available select option, 
+.selector .selector-chosen select option {
+    white-space: nowrap !important;
+    padding-right: 15px; /* Un peu d'espace à la fin du texte */
+}
+
+/* 1. Élargir le conteneur global du formulaire de Jazzmin/Django */
+.form-content, 
+.col-12.col-lg-9, 
+fieldset {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* 2. Permettre à la ligne qui contient les listes (groupes/permissions) de s'étendre */
+.form-row {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* 3. Ajuster le composant interne pour qu'il prenne ses aises sans casser le design */
+.selector {
+    display: flex !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    max-width: 900px !important; /* Fixe la largeur maximale idéale pour le widget complet */
+}
+
+
+/* 5. Ajuster la boîte des boutons du milieu pour qu'elle reste bien centrée */
+.selector .selector-add, 
+.selector .selector-remove {
+    margin: 0 10px !important; /* Un peu d'espace de chaque côté */
+    width: 200px !important; /* Largeur fixe pour les boutons */
+}
+
+/* Force la carte à respecter la largeur du conteneur et à ne plus déborder sur les boutons */
+.olMap, 
+.leaflet-container,
+div[id^="id_localisation_map"] { 
+    width: 100% !important;
+    max-width: 700px !important; /* Ajustez cette valeur pour que la carte soit à la taille idéale */
+    height: 400px !important;    /* Ajuste la hauteur de la carte */
+    border-radius: 4px;          /* Un petit arrondi pour correspondre au design de Jazzmin */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Donne un effet un peu plus propre */
+}

@@ -14,8 +14,6 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
-import firebase_admin
-from firebase_admin import credentials
 load_dotenv()
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -40,6 +38,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,25 +46,28 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'drf_spectacular',
     'rest_framework_gis',
     'app',
     'django.contrib.gis',
     'leaflet',
-    'firebase_admin',
     
 ]
 
-# CONFIGURATION DE FIREBASE ADMIN SDK
-cred = credentials.Certificate(json.loads(os.getenv('SERVICE_ACCOUNT_KEY')))
-firebase_admin.initialize_app(cred)
+#CONFIGURATION DE L'ENVOI DES EMAILS
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False  # Désactive TLS
+EMAIL_USE_SSL = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework_simplejwt.authentication.JWTAuthentication',],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-AUTH_USER_MODEL='app.User'
+AUTH_USER_MODEL='app.Utilisateur'
 DEFAULT_AUTO_FIELD='django.db.models.BigAutoField'
 
 SIMPLE_JWT = {
@@ -115,10 +117,10 @@ SIMPLE_JWT = {
 }
 
 LEAFLET_CONFIG = {
-    'DEFAULT_CENTER': (36.5, 3.0),
+    'DEFAULT_CENTER': (36.7139, 4.0536),
     'DEFAULT_ZOOM': 10,
     'MIN_ZOOM': 3,
-    'MAX_ZOOM': 18,
+    'MAX_ZOOM': 23,
     'SCALE': 'metric',
 }
 
@@ -148,6 +150,7 @@ TEMPLATES = [
         },
     },
 ]
+
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
@@ -202,3 +205,52 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+JAZZMIN_SETTINGS = {
+    "site_title": "Administration de FixCity",
+    "site_header": "Administration de FixCity",
+    "site_brand": "FixCity",
+    "welcome_sign": "Login",
+    "copyright": "Équipe FixCity",                    
+    "site_logo": "../static/logos/fixcity.png",                  
+    "login_logo": "../static/logos/fixcity.png",                  
+    "user_avatar": None,
+    "topmenu_links": [
+        {"name": "Accueil", "url": "admin:index", "permissions": ["auth.view_user"]},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+}
+
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": False,
+    "accent": "accent-primary",
+    "navbar": "navbar-white navbar-light",
+    "no_navbar_border": False,
+    "navbar_fixed": False,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": False,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": False,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "flatly",
+    "default_theme_mode": "light",
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
+}

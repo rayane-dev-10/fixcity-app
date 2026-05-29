@@ -1,23 +1,24 @@
-from .services import envoyer_notification
+from .services import send_email,generate_unique_otp
 
-from .models import Admin, Citoyen, Siege, Signalement, User,CategorieIncident, UserDevice
-from .serializers import UserDeviceSerializer, SignalementSerializer, UserDeviceSerializer, UserSerializer
+from .models import IncidentUrbain, Utilisateur,OTP
+from .serializers import IncidentUrbainSerializer, UtilisateurSerializer
 from rest_framework.decorators import api_view ,permission_classes,authentication_classes
 from rest_framework.permissions import IsAuthenticated,AllowAny
-from .permission import IsCitoyenUser,IsAppAdminUser
+from .permission import IsCitoyen,IsAgent
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import status
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import MyTokenObtainPairSerializer
 from django.contrib.gis.geos import Point
-from .enums import StatutSignalement
+from .enums import Statut
+from django.contrib.auth.hashers import check_password
 # Create your views here.
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
-    serializer = UserSerializer(data=request.data)
+    serializer = UtilisateurSerializer(data=request.data)
     if serializer.is_valid():
         serializer.validated_data['is_citoyen'] = True  
         serializer.save()
@@ -32,19 +33,11 @@ class MyTokenObtainPairView(TokenObtainPairView):
 
 @api_view(['POST'])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated,IsCitoyenUser])
-def creer_signalement(request):
-    serializer = SignalementSerializer(data=request.data,context={'request': request})
+@permission_classes([IsAuthenticated,IsCitoyen])
+def creer_incident(request):
+    serializer = IncidentUrbainSerializer(data=request.data,context={'request': request})
     if serializer.is_valid():
-        serializer.save()
-        signalement=serializer.instance
-        admin=Admin.objects.get(siege=signalement.siege)
-
-        # On récupère tous les tokens des appareils associés à l'utilisateur
-        Devicetokens = list(UserDevice.objects.filter(user=signalement.siege.admin.user).values_list('deviceToken', flat=True))
-        # Si des tokens existent, on envoie une notification à l'utilisateur pour l'informer d'un nouveau signalement
-        if Devicetokens:
-            envoyer_notification(Devicetokens, "Nouveau signalement", f"Un nouveau signalement vous a été envoyé : {signalement.description[:50]}...")
+        serializer.save()  
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
@@ -52,41 +45,46 @@ def creer_signalement(request):
 
 @api_view(['GET'])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated,IsCitoyenUser])
-def liste_signalements(request):
-    signalements = Signalement.objects.filter(citoyen=request.user.citoyen)
-    serializer = SignalementSerializer(signalements, many=True)
+@permission_classes([IsAuthenticated,IsCitoyen])
+def liste_incidents(request):
+    incidents = IncidentUrbain.objects.filter(citoyen=request.user)
+    serializer = IncidentUrbainSerializer(incidents, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated,IsAppAdminUser])
-def liste_signalements_Siege(request):
+@permission_classes([IsAuthenticated,IsAgent])
+def liste_incidents_Service(request):
     try:
-        admin=Admin.objects.get(user=request.user)
-    except Admin.DoesNotExist:
-        return Response({"detail": "Admin non trouvé."}, status=status.HTTP_404_NOT_FOUND)
+        agent=Utilisateur.objects.get(id=request.user.id)
+    except Utilisateur.DoesNotExist:
+        return Response({"detail": "Agent non trouvé."}, status=status.HTTP_404_NOT_FOUND)
         
-    signalements = Signalement.objects.filter(siege=admin.siege)
-    serializer = SignalementSerializer(signalements, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    incidents = IncidentUrbain.objects.filter(service=agent.service)
+    serializer = IncidentUrbainSerializer(incidents, many=True)
+    data=serializer.data.copy()
+    latitude=agent.service.localisation.y
+    longitude=agent.service.localisation.x
+    data.append(str(latitude))
+    data.append(str(longitude))
+    return Response(data, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated,IsAppAdminUser])
-def get_signalement(request, signalement_id):
+@permission_classes([IsAuthenticated,IsAgent])
+def get_incident(request, incident_id):
     try:
-        signalement = Signalement.objects.get(id=signalement_id)
-        serializer = SignalementSerializer(signalement)
+        incident = IncidentUrbain.objects.get(id=incident_id)
+        serializer = IncidentUrbainSerializer(incident)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    except Signalement.DoesNotExist:
-        return Response({"detail": "Signalement non trouvé."}, status=status.HTTP_404_NOT_FOUND)
+    except IncidentUrbain.DoesNotExist:
+        return Response({"detail": "Incident non trouvé."}, status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['GET'])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated,IsCitoyenUser])
-def liste_signalements_proches(request):
+@permission_classes([IsAuthenticated,IsCitoyen])
+def liste_incidents_proches(request):
     lat=request.query_params.get('lat')
     lon=request.query_params.get('long')
     if lat is None or lon is None:
@@ -96,114 +94,143 @@ def liste_signalements_proches(request):
 
     '''filtrer les signalements dans un rayon de 1 km,
     puis enlever ceux qui appartiennent au citoyen lui meme'''
-    signalements = Signalement.objects.filter(localisation__distance_lte=(point, 1000)).exclude(citoyen=request.user.citoyen)
-    if signalements.exists(): 
-       serializer = SignalementSerializer(signalements, many=True)
+    incidents = IncidentUrbain.objects.filter(localisation__distance_lte=(point, 1000)).exclude(citoyen=request.user)
+    if incidents.exists(): 
+       serializer = IncidentUrbainSerializer(incidents, many=True)
        return Response(serializer.data, status=status.HTTP_200_OK)
     else:    
-       return Response({"detail": "Aucun signalement proche n'est trouvé"}, status=status.HTTP_404_NOT_FOUND)
+       return Response({"detail": "Aucun incident proche n'est trouvé"}, status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['PATCH'])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated,IsAppAdminUser])
-def update_statut_signalement(request, signalement_id):
+@permission_classes([IsAuthenticated,IsAgent])
+def update_statut_incident(request, incident_id):
     try:
-        signalement = Signalement.objects.get(id=signalement_id)
-    except Signalement.DoesNotExist:
-        return Response({"detail": "Signalement non trouvé."}, status=status.HTTP_404_NOT_FOUND)
+        incident = IncidentUrbain.objects.get(id=incident_id)
+    except IncidentUrbain.DoesNotExist:
+        return Response({"detail": "Incident non trouvé."}, status=status.HTTP_404_NOT_FOUND)
     
-    if (request.data.get('statut')) and (request.data.get('statut') in StatutSignalement.labels):
+    if (request.data.get('statut')) and (request.data.get('statut') in Statut.labels):
         statut=request.data.get('statut')
         
-        for value,libelle in StatutSignalement.choices:
+        for value,libelle in Statut.choices:
             if libelle==statut:
-                statut=value
+                code_statut=value
 
-        signalement.statut=statut
-        signalement.save()
-        # On récupère tous les tokens des appareils associés à l'utilisateur
-        Devicetokens = list(UserDevice.objects.filter(user=signalement.citoyen.user).values_list('deviceToken', flat=True))
-        # Si des tokens existent, on envoie une notification à l'utilisateur pour l'informer du changement de statut de son signalement
-        if Devicetokens:
-            envoyer_notification(Devicetokens,"Signalement résolu",f"Cher citoyen, nous vous informons de la résolution de votre signalement : {signalement.description[:50]}...")
+        incident.statut=code_statut
+        incident.save()
+        if statut=="En cours de traitement":
+            etat=send_email(incident.citoyen.email,context="mise_a_jour_statut_incident_en_cours",incident_id=incident.id)
+        elif statut=="Résolu":
+            etat=send_email(incident.citoyen.email,context="mise_a_jour_statut_incident_resolu",incident_id=incident.id)
+        else:
+            pass
 
-        serializer = SignalementSerializer(signalement)
+        serializer = IncidentUrbainSerializer(incident)
         return Response(serializer.data, status=status.HTTP_200_OK)
     else:
         return Response({"message":"statut non indiqué ou invalide"},status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['GET'])
-@authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated,IsAppAdminUser])
-def statistiques_siege(request):
-    try:
-        admin=Admin.objects.get(user=request.user)
-    except Admin.DoesNotExist:
-        return Response({"detail": "Admin non trouvé."}, status=status.HTTP_404_NOT_FOUND)
 
-    siege=admin.siege
-    total_signalements = Signalement.objects.filter(siege=siege).count()
-    signalements_en_cours = Signalement.objects.filter(siege=siege, statut='EN_COURS').count()
-    signalements_resolus = Signalement.objects.filter(siege=siege, statut='RESOLU').count()
-    
-    data = {
-        "total_signalements": str(total_signalements),
-        "signalements_en_cours": str(signalements_en_cours),
-        "signalements_resolus": str(signalements_resolus)
-    }
-    
-    return Response(data, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def user_profile(request):
     if(request.user.is_citoyen):
-        try:
-            citoyen = Citoyen.objects.get(user=request.user)
-        except Citoyen.DoesNotExist:
-            return Response({"detail": "Citoyen non trouvé."}, status=status.HTTP_404_NOT_FOUND)
-        
-        serializer = UserSerializer(citoyen.user)
-        nbr_signalements_resolus=Signalement.objects.filter(citoyen=request.user.id, statut='RESOLU').count()
+        citoyen = Utilisateur.objects.get(id=request.user.id)        
+        serializer = UtilisateurSerializer(citoyen)
+        nbr_signalements_resolus=IncidentUrbain.objects.filter(citoyen=request.user, statut='RESOLU').count()
         data=serializer.data.copy()
         data['signalements_resolus']=str(nbr_signalements_resolus)
         return Response(data, status=status.HTTP_200_OK) 
-    elif(request.user.is_app_admin):
-        try:
-            admin=Admin.objects.get(user=request.user)
-        except Admin.DoesNotExist:
-            return Response({"detail": "Admin non trouvé."}, status=status.HTTP_404_NOT_FOUND)
-        
-        serializer = UserSerializer(admin.user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    elif(request.user.is_agent):
+        agent=Utilisateur.objects.get(id=request.user.id)
+        serializer = UtilisateurSerializer(agent)
+        total_signalements = IncidentUrbain.objects.filter(service=agent.service).count()
+        signalements_en_cours = IncidentUrbain.objects.filter(service=agent.service, statut='EN_COURS').count()
+        signalements_resolus = IncidentUrbain.objects.filter(service=agent.service, statut='RESOLU').count()
+        data=serializer.data.copy()
+        data['total_signalements']=str(total_signalements)
+        data['signalements_en_cours']=str(signalements_en_cours)
+        data['signalements_resolus']=str(signalements_resolus)
+        return Response(data, status=status.HTTP_200_OK)
     else:
         return Response({"detail": "Rôle Utilisateur non reconnu."}, status=status.HTTP_400_BAD_REQUEST)
-   
+          
 
-
-
-@api_view(['POST','DELETE'])
-@authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
-def user_device_view(request):
-    if request.method == 'POST':
-        data=request.data.copy()
-        data['user']=request.user.id
-        serializer = UserDeviceSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def send_otp_view(request):
+    email=request.data.get('email')
+    if email is None:
+        return Response({"message":"email non fourni"},status=status.HTTP_400_BAD_REQUEST)
     
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    elif request.method == 'DELETE':
-        UserDevices=UserDevice.objects.filter(user=request.user)
-        if UserDevices.exists():
-            UserDevices.delete()
-            return Response({"detail": "User device tokens deleted successfully."}, status=status.HTTP_200_OK)
+    otp, hached_otp = generate_unique_otp()
+    try :
+        utilisateur=Utilisateur.objects.get(email=email)
+        otpInstance=OTP.objects.create(email=utilisateur.email,hached_otp=hached_otp)
+        otpInstance.setExpiration(minutes=10)
+        otpInstance.save()
+        etat=send_email(email,context="password_reset",otp=otp)
+        if etat:
+            return Response({"message":"mail envoyé avec succès"},status=status.HTTP_200_OK)
         else:
-            return Response({"detail": "No user device tokens found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message":"erreur lors de l'envoi du mail"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)   
+    except Utilisateur.DoesNotExist:
+        otpInstance=OTP.objects.create(email=email,hached_otp=hached_otp)
+        otpInstance.setExpiration(minutes=10)
+        otpInstance.save()
+        etat=send_email(email,context="email_verification",otp=otp)
+        if etat:
+            return Response({"message":"mail envoyé avec succès"},status=status.HTTP_200_OK)
+        else:
+            return Response({"message":"erreur lors de l'envoi du mail"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_otp_view(request):
+    otp_input=request.data.get('otp')
+    email=request.data.get('email')
+    if  otp_input is None or email is None:
+        return Response({"message":"otp et/ou email non fournis"},status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        otp=OTP.objects.filter(email=email).latest('created_at')
+        if otp.is_expired():
+            otp.delete()
+            return Response({"message":"OTP expiré"},status=status.HTTP_400_BAD_REQUEST)
+        else:
+            if check_password(otp_input, otp.hached_otp):
+                otp.delete()
+                return Response({"message":"OTP vérifié avec succès"},status=status.HTTP_200_OK)
+            else:
+                return Response({"message":"OTP invalide"},status=status.HTTP_400_BAD_REQUEST)
+    except OTP.DoesNotExist:
+        return Response({"message":"OTP invalide"},status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def password_reset_view(request):
+    email=request.data.get('email')
+    new_password=request.data.get('password')
+    if email is None or new_password is None:
+        return Response({"message":"email et/ou nouveau mot de passe non fournis"},status=status.HTTP_400_BAD_REQUEST)
+    
+    try: 
+        utilisateur=Utilisateur.objects.get(email=email)
+        utilisateur.set_password(new_password)
+        utilisateur.save()
+        return Response({"message":"Mot de passe réinitialisé avec succès"},status=status.HTTP_200_OK)
+    except Utilisateur.DoesNotExist:
+        return Response({"message":"Utilisateur non trouvé"},status=status.HTTP_404_NOT_FOUND)    
+    
+    
+
+
 
     
 

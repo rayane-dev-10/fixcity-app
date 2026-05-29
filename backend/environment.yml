@@ -17,9 +17,8 @@ dependencies:
       - djangorestframework-gis==1.2.0
       - djangorestframework-simplejwt==5.5.1
       - drf-extra-fields==3.7.0
-      - drf-spectacular==0.29.0
       - psycopg2==2.9.11
       - pyjwt==2.12.1
       - python-dotenv==1.2.2
-      - firebase-admin==7.4.0
-      - django-anymail==15.0
+      - django-jazzmin==3.0.4
+      - apscheduler==3.11.2

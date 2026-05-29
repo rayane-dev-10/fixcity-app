@@ -1,10 +1,10 @@
 from rest_framework import permissions
 
-class IsCitoyenUser(permissions.BasePermission):
+class IsCitoyen(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_citoyen
     
 
-class IsAppAdminUser(permissions.BasePermission):
+class IsAgent(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_app_admin   
+        return request.user.is_agent   

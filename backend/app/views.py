@@ -162,7 +162,27 @@ def user_profile(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def send_otp_view(request):
+def register_otp_view(request):
+    email=request.data.get('email')
+    if email is None:
+        return Response({"message":"email non fourni"},status=status.HTTP_400_BAD_REQUEST)
+    
+    if Utilisateur.objects.filter(email=email).exists():
+        return Response({"message":"un utilisateur est déjà enregistré avec cet email"},status=status.HTTP_400_BAD_REQUEST)
+    else:
+        otp, hached_otp = generate_unique_otp()
+        otpInstance=OTP.objects.create(email=email,hached_otp=hached_otp)
+        otpInstance.setExpiration(minutes=10)
+        otpInstance.save()
+        etat=send_email(email,context="email_verification",otp=otp)
+        if etat:
+            return Response({"message":"mail envoyé avec succès"},status=status.HTTP_200_OK)
+        else:
+            return Response({"message":"erreur lors de l'envoi du mail"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def password_reset_otp_view(request):
     email=request.data.get('email')
     if email is None:
         return Response({"message":"email non fourni"},status=status.HTTP_400_BAD_REQUEST)
@@ -179,14 +199,9 @@ def send_otp_view(request):
         else:
             return Response({"message":"erreur lors de l'envoi du mail"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)   
     except Utilisateur.DoesNotExist:
-        otpInstance=OTP.objects.create(email=email,hached_otp=hached_otp)
-        otpInstance.setExpiration(minutes=10)
-        otpInstance.save()
-        etat=send_email(email,context="email_verification",otp=otp)
-        if etat:
-            return Response({"message":"mail envoyé avec succès"},status=status.HTTP_200_OK)
-        else:
-            return Response({"message":"erreur lors de l'envoi du mail"},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"message":"Utilisateur non trouvé"},status=status.HTTP_404_NOT_FOUND)       
+        
+
     
     
 @api_view(['POST'])

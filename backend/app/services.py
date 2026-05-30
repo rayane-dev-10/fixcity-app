@@ -59,7 +59,7 @@ def send_email(email,context,otp=None,incident_id=None):
     elif otp is not None and context=="password_reset":
         utilisateur=Utilisateur.objects.get(email=email)
         html_content = render_to_string(
-        "mails/password-reset-request.html",
+        "mails/reset-password.html",
         {   "userFirstName":utilisateur.first_name,
             "otp": otp,
         }

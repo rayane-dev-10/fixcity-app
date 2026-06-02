@@ -1,7 +1,6 @@
 from django.utils import timezone
 
 from django.contrib.gis.db import models
-from django.contrib.gis.db import models
 from .enums import Wilaya, Commune, Statut
 # Create your models here.
 from django.contrib.auth.models import BaseUserManager,AbstractUser
@@ -10,7 +9,7 @@ from django.contrib.auth.models import BaseUserManager,AbstractUser
 class MyUserManager(BaseUserManager):
     def create_user(self, email, password, **extra_fields):
         if not email or not password:
-            raise ValueError("L'adresse mail et mot de passe sont obligatoires")
+            raise ValueError("L'adresse email et mot de passe sont obligatoires")
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)

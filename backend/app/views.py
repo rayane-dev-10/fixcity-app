@@ -220,7 +220,7 @@ def verify_otp_view(request):
         else:
             if check_password(otp_input, otp.hached_otp):
                 otp.delete()
-                return Response({"message":"OTP vérifié avec succès"},status=status.HTTP_200_OK)
+                return Response({"message":"OTP valide"},status=status.HTTP_200_OK)
             else:
                 return Response({"message":"OTP invalide"},status=status.HTTP_400_BAD_REQUEST)
     except OTP.DoesNotExist:

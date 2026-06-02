@@ -1,5 +1,5 @@
 from django import forms
-from .forms import MyUserCreationForm
+from .forms import MyUserChangeForm, MyUserCreationForm
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from leaflet.admin import LeafletGeoAdmin
@@ -15,6 +15,7 @@ from .models import (
 @admin.register(Utilisateur)
 class MyUserAdmin(UserAdmin):
     add_form=MyUserCreationForm
+    form = MyUserChangeForm
     list_display = ('id', 'first_name', 'last_name', 'email','password', 'is_citoyen','is_agent','is_staff','is_active')
     search_fields = ('nom', 'prenom', 'email')
     list_filter = ('is_citoyen','is_agent','is_staff','is_active')
@@ -32,7 +33,7 @@ class MyUserAdmin(UserAdmin):
         }),
         ('Permissions',{'fields':('is_citoyen','is_agent','is_staff'),})
     )
-
+    """
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         # On vérifie si le champ password existe dans le formulaire
@@ -40,7 +41,7 @@ class MyUserAdmin(UserAdmin):
             # On remplace le widget par défaut par un champ "Password"
             form.base_fields['password'].widget = forms.PasswordInput()
         return form
-    
+    """   
     class Media:
         css = {
             'all': ('css/admin_custom.css',) # On indique à Django de charger ce fichier CSS

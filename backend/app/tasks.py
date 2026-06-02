@@ -10,7 +10,7 @@ def start_otp_cleanup():
     # On planifie l'exécution toutes les 10 minutes
     scheduler.add_job(
         delete_expired_otps, 
-        'interval', 
+        'interval',
         minutes=10,
         id='clean_expired_otps_job',
         replace_existing=True

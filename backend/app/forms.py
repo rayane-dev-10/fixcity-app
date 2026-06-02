@@ -1,12 +1,11 @@
 from django import forms
 from .models import Utilisateur
+from django.contrib.auth.forms import UserChangeForm
 class MyUserCreationForm(forms.ModelForm):
     # On définit le mot de passe manuellement pour avoir le type "password"
-    password = forms.CharField(widget=forms.PasswordInput())
-    
     class Meta:
         model = Utilisateur
-        fields = ("email", "first_name", "last_name","is_staff", "is_citoyen", "is_agent")
+        fields = ("email", "password", "first_name", "last_name","is_staff", "is_citoyen", "is_agent")
 
     def save(self, commit=True):
         utilisateur = super().save(commit=False)
@@ -14,3 +13,12 @@ class MyUserCreationForm(forms.ModelForm):
         if commit:
             utilisateur.save()
         return utilisateur
+    
+
+class MyUserChangeForm(UserChangeForm):
+    class Meta:
+        model = Utilisateur
+        fields = ("email", "password", "first_name", "last_name","is_staff", "is_citoyen", "is_agent")  
+
+
+     

@@ -1,0 +1,49 @@
+name: fixcity_app
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  http: ^1.1.0
+  shared_preferences: ^2.3.2
+  jwt_decoder: ^2.0.1
+
+  # Gestion de la carte et des coordonnées
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.1
+  geolocator: ^14.0.2
+  image_picker: ^1.2.2
+  geocoding: ^4.0.0
+  video_player: ^2.11.1
+  flutter_map_marker_popup: ^6.1.2
+  flutter_native_splash: ^2.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# --- CONFIGURATION CORRIGÉE ICI ---
+flutter_native_splash:
+  color: "#ffffff"
+  fullscreen: true
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/logo.png
+    - assets/videos/splashscreen.mp4
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21

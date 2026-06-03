@@ -342,7 +342,7 @@ class _EcranSignInState extends State<EcranSignIn> {
                         ),
 
                         const SizedBox(height: 20),
-                        _label('Créez un mot de passe', obligatoire: true),
+                        _label('Mot de passe', obligatoire: true),
                         const SizedBox(height: 8),
                         _champMotDePasse(
                           controller: _mdpController,

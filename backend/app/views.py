@@ -94,7 +94,7 @@ def liste_incidents_proches(request):
 
     '''filtrer les signalements dans un rayon de 1 km,
     puis enlever ceux qui appartiennent au citoyen lui meme'''
-    incidents = IncidentUrbain.objects.filter(localisation__distance_lte=(point, 1000)).exclude(citoyen=request.user)
+    incidents = IncidentUrbain.objects.filter(localisation__distance_lte=(point, 10000)).exclude(citoyen=request.user)
     if incidents.exists(): 
        serializer = IncidentUrbainSerializer(incidents, many=True)
        return Response(serializer.data, status=status.HTTP_200_OK)

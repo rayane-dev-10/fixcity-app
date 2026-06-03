@@ -1,86 +1,109 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../services/api_service.dart';
 import '../../utils/couleurs_app.dart';
+import '../../services/api_service.dart';
 import '../citoyen/parametres.dart';
-
-class EcranProfilAdmin extends StatefulWidget {
-  const EcranProfilAdmin({super.key});
+import '../auth/login.dart';
+class EcranMonProfil extends StatefulWidget {
+  const EcranMonProfil({super.key});
 
   @override
-  State<EcranProfilAdmin> createState() => _EcranProfilAdminState();
+  State<EcranMonProfil> createState() => _EcranMonProfilState();
 }
 
-class _EcranProfilAdminState extends State<EcranProfilAdmin> {
+class _EcranMonProfilState extends State<EcranMonProfil> {
   String _nomPrenom = "";
   String _email = "";
-  String _servicePublic = "Service public";
-  String _wilaya = "Tizi Ouzou";
-
   int _incidentsResolusCount = 0;
-  int _incidentsEnCoursCount = 0;
-  int _totalSignalements = 0;
 
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _chargerProfilAgent();
+    _chargerProfil();
   }
 
-  Future<void> _chargerProfilAgent() async {
+  Future<void> _chargerProfil() async {
     try {
-      final token = await ApiService.getValidAccessToken();
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token');
 
-      if (token == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final response = await ApiService.getUserProfile(token);
+      final response = await ApiService.getUserProfile(token as String);
 
       if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        final firstName = data['first_name']?.toString() ?? "";
-        final lastName = data['last_name']?.toString() ?? "";
-
         setState(() {
+          final firstName = data['first_name']?.toString() ?? "";
+          final lastName = data['last_name']?.toString() ?? "";
+
           _nomPrenom = "$firstName $lastName".trim();
 
           if (_nomPrenom.isEmpty) {
-            _nomPrenom = "Agent FixCity";
+            _nomPrenom = "Utilisateur FixCity";
           }
 
           _email = data['email']?.toString() ?? "";
-
-          _totalSignalements =
-              int.tryParse(data['total_signalements'].toString()) ?? 0;
-
-          _incidentsEnCoursCount =
-              int.tryParse(data['signalements_en_cours'].toString()) ?? 0;
 
           _incidentsResolusCount =
               int.tryParse(data['signalements_resolus'].toString()) ?? 0;
 
           _isLoading = false;
         });
-      } else {
-        setState(() => _isLoading = false);
+      } else if (response.statusCode == 401) {
+        // token d'acées expiré ou invalide , on tente de rafraichir le token
+        final refreshToken = prefs.getString('refresh_token');
+        final response = await ApiService.refreshToken(refreshToken as String);
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final newAccessToken = data['access'];
+
+          await prefs.setString('access_token', newAccessToken);
+
+          // réessayer de charger le profil avec le nouveau token
+          _chargerProfil();
+        } else {
+          // échec du rafraîchissement, rediriger vers la page de login
+          if (!mounted) return;
+          await prefs.remove('access_token');
+          await prefs.remove('refresh_token');
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const EcranLogin()),
+            );
+          }
+        }
+
       }
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+
       setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Erreur lors du chargement du profil.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   Future<void> _deconnexion() async {
-    // Si tu as une méthode logout globale ailleurs, utilise-la ici.
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove('access_token');
+    await prefs.remove('refresh_token');
+
+    if (!mounted) return;
+    //
     Navigator.pushNamedAndRemoveUntil(
       context,
       '/',
@@ -91,9 +114,9 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: CouleursApp.background,
-        body: Center(
+        body: const Center(
           child: CircularProgressIndicator(
             color: CouleursApp.primaire,
           ),
@@ -108,14 +131,20 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
           children: [
             Stack(
               children: [
-                Container(height: 200, color: CouleursApp.primaire),
+                Container(
+                  height: 200,
+                  color: CouleursApp.primaire,
+                ),
                 Positioned(
                   bottom: -1,
                   left: 0,
                   right: 0,
                   child: ClipPath(
                     clipper: ArcheInverseeClipper(),
-                    child: Container(height: 80, color: CouleursApp.background),
+                    child: Container(
+                      height: 80,
+                      color: CouleursApp.background,
+                    ),
                   ),
                 ),
                 Positioned(
@@ -139,7 +168,7 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
                         ],
                       ),
                       child: const Icon(
-                        Icons.admin_panel_settings,
+                        Icons.person_outline_rounded,
                         size: 70,
                         color: Color(0xFF1E1E1E),
                       ),
@@ -171,76 +200,67 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
               child: Text(
                 _email,
                 style: const TextStyle(
+                  fontSize: 13,
                   color: CouleursApp.primaire,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 30),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  _buildInfoCard("Wilaya :", _wilaya),
-                  const SizedBox(width: 16),
-                  _buildInfoCard("Service public :", _servicePublic),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Statistiques signalements",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: CouleursApp.textSecondaire,
+              child: Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: CouleursApp.card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: CouleursApp.bordure,
+                    width: 1.5,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      "$_incidentsResolusCount",
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: CouleursApp.textPrimaire,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Incidents résolus",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: CouleursApp.textSecondaire,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: 32,
+                      color: CouleursApp.secondaire,
+                    ),
+                  ],
                 ),
               ),
             ),
 
-            const SizedBox(height: 16),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildStatSimple(
-                      "Total",
-                      "$_totalSignalements",
-                      Colors.blueGrey,
-                    ),
-                  ),
-                  Container(height: 30, width: 1, color: Colors.grey.shade300),
-                  Expanded(
-                    child: _buildStatSimple(
-                      "En cours",
-                      "$_incidentsEnCoursCount",
-                      Colors.orange,
-                    ),
-                  ),
-                  Container(height: 30, width: 1, color: Colors.grey.shade300),
-                  Expanded(
-                    child: _buildStatSimple(
-                      "Résolus",
-                      "$_incidentsResolusCount",
-                      Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 30),
+            const SizedBox(height: 25),
             const Divider(indent: 24, endIndent: 24),
 
             const Padding(
@@ -248,7 +268,7 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  "Informations",
+                  "Paramètres de l'application",
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -261,7 +281,7 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
             _buildItemOption(
               icon: Icons.info_outline_rounded,
               titre: "À propos de FixCity",
-              sousTitre: "Conditions, contact et mentions légales",
+              sousTitre: "C'est quoi FixCity, conditions et contact",
               onTap: () {
                 Navigator.push(
                   context,
@@ -292,60 +312,6 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
     );
   }
 
-  Widget _buildInfoCard(String label, String value) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: CouleursApp.bordure),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatSimple(String label, String count, Color color) {
-    return Column(
-      children: [
-        Text(
-          count,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildItemOption({
     required IconData icon,
     required String titre,
@@ -369,10 +335,17 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
         ),
         title: Text(
           titre,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: CouleursApp.textPrimaire,
+          ),
         ),
         subtitle: sousTitre.isNotEmpty
-            ? Text(sousTitre, style: const TextStyle(fontSize: 12))
+            ? Text(
+                sousTitre,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              )
             : null,
         trailing: const Icon(
           Icons.arrow_forward_ios,

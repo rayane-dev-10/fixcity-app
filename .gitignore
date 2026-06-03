@@ -10,8 +10,9 @@ Thumbs.db
 # ==========================================
 # BACKEND (Python DRF)
 # ==========================================
-# Environnements virtuels (Crucial sur machine locale)
+# Environnements virtuels
 .venv/
+devenv/
 venv/
 ENV/
 env/

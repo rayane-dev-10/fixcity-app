@@ -41,16 +41,6 @@ class _EcranLoginState extends State<EcranLogin> {
       return 'Email requis';
     }
 
-    final emailRegex = RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,}$');
-
-    if (!emailRegex.hasMatch(email)) {
-      return 'Email invalide';
-    }
-
-    if (!email.endsWith('@gmail.com') && !email.endsWith('@fixcity.dz')) {
-      return 'Email doit se terminer par @gmail.com ou @fixcity.dz';
-    }
-
     return null;
   }
 
@@ -59,22 +49,6 @@ class _EcranLoginState extends State<EcranLogin> {
 
     if (password.isEmpty) {
       return 'Mot de passe requis';
-    }
-
-    if (password.length < 8) {
-      return 'Minimum 8 caractères';
-    }
-
-    if (!RegExp(r'[A-Za-z]').hasMatch(password)) {
-      return 'Le mot de passe doit contenir une lettre';
-    }
-
-    if (!RegExp(r'\d').hasMatch(password)) {
-      return 'Le mot de passe doit contenir un chiffre';
-    }
-
-    if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=;\/\\\[\]]').hasMatch(password)) {
-      return 'Le mot de passe doit contenir un symbole';
     }
 
     return null;
@@ -98,39 +72,39 @@ class _EcranLoginState extends State<EcranLogin> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
-final String access = data['access'];
-final String refresh = data['refresh'];
+        final String access = data['access'];
+        final String refresh = data['refresh'];
 
-final prefs = await SharedPreferences.getInstance();
-await prefs.setString('access_token', access);
-await prefs.setString('refresh_token', refresh);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('access_token', access);
+        await prefs.setString('refresh_token', refresh);
 
-final decodedToken = JwtDecoder.decode(access);
+        final decodedToken = JwtDecoder.decode(access);
 
-final bool isCitoyen = decodedToken['is_citoyen'] == true;
-final bool isAgent = decodedToken['is_agent'] == true;
+        final bool isCitoyen = decodedToken['is_citoyen'] == true;
+        final bool isAgent = decodedToken['is_agent'] == true;
 
-if (!mounted) return;
+        if (!mounted) return;
 
-if (isAgent) {
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const DashboardAdmin(),
-    ),
-  );
-} else if (isCitoyen) {
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const EcranAccueil(),
-    ),
-  );
-} else {
-  _afficherErreur('Rôle utilisateur non reconnu.');
-}
+        if (isAgent) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const DashboardAdmin(),
+            ),
+          );
+        } else if (isCitoyen) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const EcranAccueil(),
+            ),
+          );
+        } else {
+          _afficherErreur('Email ou mot de passe incorrect.');
+        }
       } else {
-        _afficherErreur(data['detail'] ?? 'Email ou mot de passe incorrect');
+        _afficherErreur('Email ou mot de passe incorrect');
       }
     } catch (_) {
       if (!mounted) return;

@@ -33,15 +33,7 @@ class MyUserAdmin(UserAdmin):
         }),
         ('Permissions',{'fields':('is_citoyen','is_agent','is_staff'),})
     )
-    """
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        # On vérifie si le champ password existe dans le formulaire
-        if 'password' in form.base_fields:
-            # On remplace le widget par défaut par un champ "Password"
-            form.base_fields['password'].widget = forms.PasswordInput()
-        return form
-    """   
+       
     class Media:
         css = {
             'all': ('css/admin_custom.css',) # On indique à Django de charger ce fichier CSS

@@ -31,8 +31,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG')
 
-
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*'] # Permet à toutes les adresses d'accéder à l'API (à restreindre en production)
 
 
 # Application definition

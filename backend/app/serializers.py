@@ -10,7 +10,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         user=self.user
         if user.is_staff or user.is_superuser :
-            raise AuthenticationFailed("Authentification échouée! vous n'avez pas le droit d'acceder à l'application mobile.")
+            raise AuthenticationFailed("email ou mot de passe incorrect")
         
         return data
     

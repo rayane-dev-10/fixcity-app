@@ -54,7 +54,7 @@ class IncidentUrbainSerializer(serializers.ModelSerializer):
     long = serializers.SerializerMethodField()
     class Meta:
         model = IncidentUrbain
-        fields = ['id','latitude', 'longitude','lat','long','commune','nom_wilaya','nom_commune', 'wilaya','url_image', 'description', 'statut', 'date_signalement', 'categorie', 'citoyen', 'service']
+        fields = ['id','latitude', 'longitude','lat','long','adresseLisible','commune','nom_wilaya','nom_commune', 'wilaya','url_image', 'description', 'statut', 'date_signalement', 'categorie', 'citoyen', 'service']
         read_only_fields = ['id','lat','long', 'statut']
 
 

@@ -253,3 +253,11 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success"
     }
 }
+
+# configuration du cache en mémoire pour stocker les données fréquemment utilisées et améliorer les performances de l'application
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}

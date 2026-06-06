@@ -21,7 +21,6 @@ class FixCityApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      // Toujours sans le mot-clé const !
       home: EcranSplash(), 
     );
   }

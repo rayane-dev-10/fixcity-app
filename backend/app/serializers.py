@@ -78,6 +78,7 @@ class IncidentUrbainSerializer(serializers.ModelSerializer):
         validated_data = completer_champs_incident(self.context.get('request'),validated_data,localisation)   
 
         incident=IncidentUrbain.objects.create(localisation=localisation,
+                                                   adresseLisible=validated_data.get('adresseLisible'),
                                                    commune=self.get_commune_value(validated_data['commune']),
                                                    wilaya=self.get_wilaya_value(validated_data['wilaya']),
                                                    url_image=validated_data.get('url_image'),

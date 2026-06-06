@@ -16,6 +16,7 @@ import '../citoyen/mon_profil.dart';
 import '../citoyen/signalements.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import '../auth/login.dart';
+import '../../utils/lazy_indexed_stack.dart';
 class IncidentCommunaute {
   final String id;
   final String type;
@@ -537,7 +538,7 @@ void _redirectionLogin() {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
+      body: LazyIndexedStack( 
         index: _indexSelectionne,
         children: [
           _buildCorpsCarteAccueil(),

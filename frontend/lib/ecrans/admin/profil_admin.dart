@@ -109,7 +109,7 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
     );
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
@@ -124,190 +124,200 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
 
     return Scaffold(
       backgroundColor: CouleursApp.background,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Stack(
-              children: [
-                Container(height: 200, color: CouleursApp.primaire),
-                Positioned(
-                  bottom: -1,
-                  left: 0,
-                  right: 0,
-                  child: ClipPath(
-                    clipper: ArcheInverseeClipper(),
-                    child: Container(height: 80, color: CouleursApp.background),
+      // === AJOUT DU REFRESH INDICATOR ===
+      body: RefreshIndicator(
+        color: CouleursApp.primaire,
+        backgroundColor: Colors.white,
+        // Appel de votre fonction de rafraîchissement pour l'agent
+        onRefresh: _chargerProfilAgent, 
+        child: SingleChildScrollView(
+          // Important : permet le défilement "pull-to-refresh" 
+          // même si l'écran n'est pas rempli
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              Stack(
+                children: [
+                  Container(height: 200, color: CouleursApp.primaire),
+                  Positioned(
+                    bottom: -1,
+                    left: 0,
+                    right: 0,
+                    child: ClipPath(
+                      clipper: ArcheInverseeClipper(),
+                      child: Container(height: 80, color: CouleursApp.background),
+                    ),
                   ),
-                ),
-                Positioned(
-                  bottom: 10,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFC9FAD9),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 4),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.admin_panel_settings,
-                        size: 70,
-                        color: Color(0xFF1E1E1E),
+                  Positioned(
+                    bottom: 10,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFC9FAD9),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.admin_panel_settings,
+                          size: 70,
+                          color: Color(0xFF1E1E1E),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Text(
-              _nomPrenom,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: CouleursApp.textPrimaire,
+                ],
               ),
-            ),
 
-            const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE4F9EC),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _email,
+              Text(
+                _nomPrenom,
                 style: const TextStyle(
-                  color: CouleursApp.primaire,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: CouleursApp.textPrimaire,
                 ),
               ),
-            ),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 8),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  _buildInfoCard("Wilaya :", _wilaya),
-                  const SizedBox(width: 16),
-                  _buildInfoCard("Service public :", _servicePublic),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
-              child: Align(
-                alignment: Alignment.centerLeft,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE4F9EC),
+                  borderRadius: BorderRadius.circular(20),
+                ),
                 child: Text(
-                  "Statistiques signalements",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: CouleursApp.textSecondaire,
+                  _email,
+                  style: const TextStyle(
+                    color: CouleursApp.primaire,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildStatSimple(
-                      "Pas traités",
-                      "$_signalementsPasTraitesCount",
-                      Colors.red,
-                    ),
-                  ),
-                  Container(height: 30, width: 1, color: Colors.grey.shade300),
-                  Expanded(
-                    child: _buildStatSimple(
-                      "En cours",
-                      "$_incidentsEnCoursCount",
-                      Colors.orange,
-                    ),
-                  ),
-                  Container(height: 30, width: 1, color: Colors.grey.shade300),
-                  Expanded(
-                    child: _buildStatSimple(
-                      "Résolus",
-                      "$_incidentsResolusCount",
-                      Colors.green,
-                    ),
-                  ),
-                ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    _buildInfoCard("Wilaya :", _wilaya),
+                    const SizedBox(width: 16),
+                    _buildInfoCard("Service public :", _servicePublic),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 30),
-            const Divider(indent: 24, endIndent: 24),
+              const SizedBox(height: 30),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Informations",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: CouleursApp.textSecondaire,
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Statistiques signalements",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: CouleursApp.textSecondaire,
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            _buildItemOption(
-              icon: Icons.info_outline_rounded,
-              titre: "À propos de FixCity",
-              sousTitre: "Conditions, contact et mentions légales",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const EcranParametres(),
+              const SizedBox(height: 16),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatSimple(
+                        "Pas traités",
+                        "$_signalementsPasTraitesCount",
+                        Colors.red,
+                      ),
+                    ),
+                    Container(height: 30, width: 1, color: Colors.grey.shade300),
+                    Expanded(
+                      child: _buildStatSimple(
+                        "En cours",
+                        "$_incidentsEnCoursCount",
+                        Colors.orange,
+                      ),
+                    ),
+                    Container(height: 30, width: 1, color: Colors.grey.shade300),
+                    Expanded(
+                      child: _buildStatSimple(
+                        "Résolus",
+                        "$_incidentsResolusCount",
+                        Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 30),
+              const Divider(indent: 24, endIndent: 24),
+
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Informations",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: CouleursApp.textSecondaire,
+                    ),
                   ),
-                );
-              },
-            ),
+                ),
+              ),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Divider(indent: 24, endIndent: 24),
-            ),
+              _buildItemOption(
+                icon: Icons.info_outline_rounded,
+                titre: "À propos de FixCity",
+                sousTitre: "Conditions, contact et mentions légales",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const EcranParametres(),
+                    ),
+                  );
+                },
+              ),
 
-            _buildItemOption(
-              icon: Icons.logout,
-              titre: "Se déconnecter",
-              sousTitre: "",
-              couleurIcone: Colors.redAccent,
-              onTap: _deconnexion,
-            ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Divider(indent: 24, endIndent: 24),
+              ),
 
-            const SizedBox(height: 30),
-          ],
+              _buildItemOption(
+                icon: Icons.logout,
+                titre: "Se déconnecter",
+                sousTitre: "",
+                couleurIcone: Colors.redAccent,
+                onTap: _deconnexion,
+              ),
+
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
     );

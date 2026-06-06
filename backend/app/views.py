@@ -13,6 +13,7 @@ from .serializers import MyTokenObtainPairSerializer
 from django.contrib.gis.geos import Point
 from .enums import Statut
 from django.contrib.auth.hashers import check_password
+from django.core.cache import cache
 # Create your views here.
 
 @api_view(['POST'])
@@ -47,8 +48,14 @@ def creer_incident(request):
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated,IsCitoyen])
 def liste_incidents(request):
+    cache_key = f"reports_data_for_user_{request.user.id}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return Response(cached_data, status=status.HTTP_200_OK)
+    
     incidents = IncidentUrbain.objects.filter(citoyen=request.user)
     serializer = IncidentUrbainSerializer(incidents, many=True)
+    cache.set(cache_key, serializer.data, timeout=300)  # on met les données en cache pendant 5 minutes
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
@@ -59,6 +66,11 @@ def liste_incidents_Service(request):
         agent=Utilisateur.objects.get(id=request.user.id)
     except Utilisateur.DoesNotExist:
         return Response({"detail": "Agent non trouvé."}, status=status.HTTP_404_NOT_FOUND)
+
+    cache_key = f"service_reports_data_{agent.service.id}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return Response(cached_data, status=status.HTTP_200_OK)
         
     incidents = IncidentUrbain.objects.filter(service=agent.service)
     serializer = IncidentUrbainSerializer(incidents, many=True)
@@ -67,6 +79,9 @@ def liste_incidents_Service(request):
     longitude=agent.service.localisation.x
     data.append(str(latitude))
     data.append(str(longitude))
+
+    cache.set(cache_key, data, timeout=300)  # on met les données en cache pendant 5 minutes
+
     return Response(data, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
@@ -90,13 +105,19 @@ def liste_incidents_proches(request):
     if lat is None or lon is None:
         return Response({"message":"latitude et/ou longitude non fournis"},status=status.HTTP_400_BAD_REQUEST)
     
+    cache_key = f"nearby_reports_data_for_user_{request.user.id}_lat_{lat}_lon_{lon}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return Response(cached_data, status=status.HTTP_200_OK)
+    
     point = Point(float(lon), float(lat),srid=4326)
 
-    '''filtrer les signalements dans un rayon de 1 km,
+    '''filtrer les signalements dans un rayon de 10 km,
     puis enlever ceux qui appartiennent au citoyen lui meme'''
     incidents = IncidentUrbain.objects.filter(localisation__distance_lte=(point, 10000)).exclude(citoyen=request.user)
     if incidents.exists(): 
        serializer = IncidentUrbainSerializer(incidents, many=True)
+       cache.set(cache_key, serializer.data, timeout=300)  # on met les données en cache pendant 5 minutes
        return Response(serializer.data, status=status.HTTP_200_OK)
     else:    
        return Response({"detail": "Aucun incident proche n'est trouvé"}, status=status.HTTP_404_NOT_FOUND)
@@ -128,6 +149,12 @@ def update_statut_incident(request, incident_id):
             pass
 
         serializer = IncidentUrbainSerializer(incident)
+        #on supprime les données en cache pour rafraichir les données lors de la prochaine requete get
+        cache.delete(f"service_reports_data_{request.user.service.id}")
+        cache.delete(f"reports_data_for_user_{incident.citoyen.id}")
+        cache.delete_pattern(f"nearby_reports_data_for_user_{incident.citoyen.id}_lat_*_lon_*")
+        cache.delete(f"user_profile_data_{incident.citoyen.id}") #mettre a jour les données du profil du citoyen
+        cache.delete(f"user_profile_data_{request.user.id}")# mettre a jour les données du profil de l'agent
         return Response(serializer.data, status=status.HTTP_200_OK)
     else:
         return Response({"message":"statut non indiqué ou invalide"},status=status.HTTP_400_BAD_REQUEST)
@@ -138,26 +165,48 @@ def update_statut_incident(request, incident_id):
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def user_profile(request):
+    cache_key = f"user_profile_data_{request.user.id}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return Response(cached_data, status=status.HTTP_200_OK)
     if(request.user.is_citoyen):
         citoyen = Utilisateur.objects.get(id=request.user.id)        
         serializer = UtilisateurSerializer(citoyen)
         nbr_signalements_resolus=IncidentUrbain.objects.filter(citoyen=request.user, statut='RESOLU').count()
         data=serializer.data.copy()
         data['signalements_resolus']=str(nbr_signalements_resolus)
+        cache.set(cache_key, data, timeout=300)  # on met les données en cache pendant 5 minutes
         return Response(data, status=status.HTTP_200_OK) 
     elif(request.user.is_agent):
-        agent=Utilisateur.objects.get(id=request.user.id)
+        agent = Utilisateur.objects.get(id=request.user.id)
         serializer = UtilisateurSerializer(agent)
-        total_signalements = IncidentUrbain.objects.filter(service=agent.service).count()
-        signalements_en_cours = IncidentUrbain.objects.filter(service=agent.service, statut='EN_COURS').count()
-        signalements_resolus = IncidentUrbain.objects.filter(service=agent.service, statut='RESOLU').count()
-        data=serializer.data.copy()
-        data['total_signalements']=str(total_signalements)
-        data['signalements_en_cours']=str(signalements_en_cours)
-        data['signalements_resolus']=str(signalements_resolus)
+        data = serializer.data.copy()
+        signalements_pas_traites = IncidentUrbain.objects.filter(
+            service=agent.service,
+            statut=Statut.NOUVEAU
+        ).count()
+
+        signalements_en_cours = IncidentUrbain.objects.filter(
+            service=agent.service,
+            statut=Statut.EN_COURS
+        ).count()
+
+        signalements_resolus = IncidentUrbain.objects.filter(
+            service=agent.service,
+            statut=Statut.RESOLU
+        ).count()
+
+        data['signalements_pas_traites'] = str(signalements_pas_traites)
+        data['signalements_en_cours'] = str(signalements_en_cours)
+        data['signalements_resolus'] = str(signalements_resolus)
+        data['service_public'] = agent.service.nom
+        data['wilaya'] = agent.service.get_wilaya_display()
+        data['commune'] = agent.service.get_commune_display()
+
+        cache.set(cache_key, data, timeout=300)  # on met les données en cache pendant 5 minutes
         return Response(data, status=status.HTTP_200_OK)
     else:
-        return Response({"detail": "Rôle Utilisateur non reconnu."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message":"Role utilisateur inconnu"},status=status.HTTP_400_BAD_REQUEST)
           
 
 @api_view(['POST'])

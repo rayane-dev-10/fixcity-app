@@ -103,8 +103,8 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
           _wilayaExtraite = wilaya.isNotEmpty ? wilaya : "Tizi Ouzou";
           _communeExtraite = commune.isNotEmpty ? commune : "Tizi Ouzou";
 
-          if (nomRue.isNotEmpty && nomRue != place.locality && nomRue != place.subAdministrativeArea) {
-            _adresseController.text = "$nomRue, $localite,$administrativeArea".trim();
+          if (nomRue.isNotEmpty && nomRue != place.locality && nomRue != place.administrativeArea) {
+            _adresseController.text = "$nomRue, $_communeExtraite,$_wilayaExtraite".trim();
           } else {
             _adresseController.text = "$localite $codePostal".trim();
           }

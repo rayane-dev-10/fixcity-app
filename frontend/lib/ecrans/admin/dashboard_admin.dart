@@ -11,6 +11,7 @@ import 'detail_signalement_admin.dart';
 import 'liste_signalements.dart';
 import 'profil_admin.dart';
 import '../auth/login.dart';
+import '../../utils/lazy_indexed_stack.dart';
 class IncidentCommunaute {
   final String id;
   final String type;
@@ -201,10 +202,10 @@ class _DashboardAdminState extends State<DashboardAdmin> {
     }
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
+      body: LazyIndexedStack(
         index: _indexSelectionne,
         children: [
           _buildCorpsCarteAdmin(),
@@ -547,11 +548,6 @@ class _DashboardAdminState extends State<DashboardAdmin> {
             await _chargerIncidentsService();
           }
 
-          if (index == 2) {
-            setState(() {
-              _refreshProfilKey++;
-            });
-          }
         },
         child: Container(
           decoration: BoxDecoration(

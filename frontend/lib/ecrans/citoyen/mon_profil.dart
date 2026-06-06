@@ -111,7 +111,7 @@ class _EcranMonProfilState extends State<EcranMonProfil> {
     );
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
@@ -126,187 +126,196 @@ class _EcranMonProfilState extends State<EcranMonProfil> {
 
     return Scaffold(
       backgroundColor: CouleursApp.background,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Stack(
-              children: [
-                Container(
-                  height: 200,
-                  color: CouleursApp.primaire,
-                ),
-                Positioned(
-                  bottom: -1,
-                  left: 0,
-                  right: 0,
-                  child: ClipPath(
-                    clipper: ArcheInverseeClipper(),
-                    child: Container(
-                      height: 80,
-                      color: CouleursApp.background,
-                    ),
+      // === AJOUT DU REFRESH INDICATOR ===
+      body: RefreshIndicator(
+        color: CouleursApp.primaire,
+        backgroundColor: Colors.white,
+        // On lie le geste "tirer vers le bas" à votre fonction existante
+        onRefresh: _chargerProfil, 
+        child: SingleChildScrollView(
+          // Important : force la possibilité de faire glisser l'écran vers le bas
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              Stack(
+                children: [
+                  Container(
+                    height: 200,
+                    color: CouleursApp.primaire,
                   ),
-                ),
-                Positioned(
-                  bottom: 10,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFC9FAD9),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 4),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.person_outline_rounded,
-                        size: 70,
-                        color: Color(0xFF1E1E1E),
+                  Positioned(
+                    bottom: -1,
+                    left: 0,
+                    right: 0,
+                    child: ClipPath(
+                      clipper: ArcheInverseeClipper(),
+                      child: Container(
+                        height: 80,
+                        color: CouleursApp.background,
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Text(
-              _nomPrenom,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: CouleursApp.textPrimaire,
+                  Positioned(
+                    bottom: 10,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFC9FAD9),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            )
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.person_outline_rounded,
+                          size: 70,
+                          color: Color(0xFF1E1E1E),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
 
-            const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE4F9EC),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _email,
+              Text(
+                _nomPrenom,
                 style: const TextStyle(
-                  fontSize: 13,
-                  color: CouleursApp.primaire,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: CouleursApp.textPrimaire,
                 ),
               ),
-            ),
 
-            const SizedBox(height: 30),
+              const SizedBox(height: 8),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: CouleursApp.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: CouleursApp.bordure,
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    )
-                  ],
+                  color: const Color(0xFFE4F9EC),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Column(
-                  children: [
-                    Text(
-                      "$_incidentsResolusCount",
-                      style: const TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: CouleursApp.textPrimaire,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      "Incidents résolus",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: CouleursApp.textSecondaire,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Icon(
-                      Icons.check_circle_rounded,
-                      size: 32,
-                      color: CouleursApp.secondaire,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 25),
-            const Divider(indent: 24, endIndent: 24),
-
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              child: Align(
-                alignment: Alignment.centerLeft,
                 child: Text(
-                  "Paramètres de l'application",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: CouleursApp.textSecondaire,
+                  _email,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: CouleursApp.primaire,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-            ),
 
-            _buildItemOption(
-              icon: Icons.info_outline_rounded,
-              titre: "À propos de FixCity",
-              sousTitre: "C'est quoi FixCity, conditions et contact",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const EcranParametres(),
+              const SizedBox(height: 30),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: CouleursApp.card,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: CouleursApp.bordure,
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
                   ),
-                );
-              },
-            ),
+                  child: Column(
+                    children: [
+                      Text(
+                        "$_incidentsResolusCount",
+                        style: const TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: CouleursApp.textPrimaire,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        "Incidents résolus",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: CouleursApp.textSecondaire,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Icon(
+                        Icons.check_circle_rounded,
+                        size: 32,
+                        color: CouleursApp.secondaire,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Divider(indent: 24, endIndent: 24),
-            ),
+              const SizedBox(height: 25),
+              const Divider(indent: 24, endIndent: 24),
 
-            _buildItemOption(
-              icon: Icons.logout,
-              titre: "Se déconnecter",
-              sousTitre: "",
-              couleurIcone: Colors.redAccent,
-              onTap: _deconnexion,
-            ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Paramètres de l'application",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: CouleursApp.textSecondaire,
+                    ),
+                  ),
+                ),
+              ),
 
-            const SizedBox(height: 30),
-          ],
+              _buildItemOption(
+                icon: Icons.info_outline_rounded,
+                titre: "À propos de FixCity",
+                sousTitre: "C'est quoi FixCity, conditions et contact",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const EcranParametres(),
+                    ),
+                  );
+                },
+              ),
+
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Divider(indent: 24, endIndent: 24),
+              ),
+
+              _buildItemOption(
+                icon: Icons.logout,
+                titre: "Se déconnecter",
+                sousTitre: "",
+                couleurIcone: Colors.redAccent,
+                onTap: _deconnexion,
+              ),
+
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
     );

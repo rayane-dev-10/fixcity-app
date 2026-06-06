@@ -57,6 +57,37 @@ class _EcranMotDePasseOublieState extends State<EcranMotDePasseOublie> {
     }
   }
 
+String? _validerMotDePasseFort(String? valeur) {
+  final password = valeur ?? '';
+
+  if (password.isEmpty) {
+    return 'Mot de passe requis';
+  }
+
+  if (password.length < 8) {
+    return 'Doit contenir au moins 8 caractères';
+  }
+
+  if (!RegExp(r'[A-Z]').hasMatch(password)) {
+    return 'Doit contenir une lettre majuscule';
+  }
+
+  if (!RegExp(r'[a-z]').hasMatch(password)) {
+    return 'Doit contenir une lettre minuscule';
+  }
+
+  if (!RegExp(r'\d').hasMatch(password)) {
+    return 'Doit contenir un chiffre';
+  }
+
+  if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=;\/\\\[\]]')
+      .hasMatch(password)) {
+    return 'Doit contenir un caractère spécial';
+  }
+
+  return null;
+}
+
   void _showErreur(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -333,21 +364,31 @@ class _EcranMotDePasseOublieState extends State<EcranMotDePasseOublie> {
         hint: 'Votre email',
         prefixIcon: Icons.email_outlined,
       ),
-      validator: (valeur) {
-        if (valeur == null || valeur.trim().isEmpty) {
-          return 'Email requis';
-        }
+    validator: (valeur) {
+      if (valeur == null || valeur.trim().isEmpty) {
+        return 'Email requis';
+      }
 
-        final emailRegex = RegExp(
-          r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,}$',
-        );
+      final email = valeur.trim().toLowerCase();
 
-        if (!emailRegex.hasMatch(valeur.trim())) {
-          return 'Email invalide';
-        }
+      final emailRegex = RegExp(
+        r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,}$',
+      );
 
-        return null;
-      },
+      if (!emailRegex.hasMatch(email)) {
+        return 'Email invalide';
+      }
+
+      if (email.endsWith('@fixcity.dz')) {
+        return "Veuillez contacter l'équipe FixCity pour réinitialiser votre mot de passe.";
+      }
+
+      if (!email.endsWith('@gmail.com')) {
+        return 'Veuillez utiliser une adresse Gmail valide.';
+      }
+
+      return null;
+    },
     );
   }
 
@@ -440,17 +481,7 @@ class _EcranMotDePasseOublieState extends State<EcranMotDePasseOublie> {
               },
             ),
           ),
-          validator: (valeur) {
-            if (valeur == null || valeur.isEmpty) {
-              return 'Mot de passe requis';
-            }
-
-            if (valeur.length < 6) {
-              return 'Minimum 6 caractères';
-            }
-
-            return null;
-          },
+          validator: _validerMotDePasseFort,
         ),
 
         const SizedBox(height: 20),
@@ -477,13 +508,12 @@ class _EcranMotDePasseOublieState extends State<EcranMotDePasseOublie> {
             ),
           ),
           validator: (valeur) {
-            if (valeur == null || valeur.isEmpty) {
-              return 'Confirmation requise';
+            if (valeur != _passwordController.text) {
+              return 'Les deux mots de passe doivent être identiques';
             }
 
-            if (valeur != _passwordController.text) {
-              return 'Les mots de passe ne correspondent pas';
-            }
+            final erreur = _validerMotDePasseFort(valeur);
+            if (erreur != null) return erreur;
 
             return null;
           },
@@ -587,6 +617,7 @@ class _EcranMotDePasseOublieState extends State<EcranMotDePasseOublie> {
           width: 1.5,
         ),
       ),
+      errorMaxLines: 3,
     );
   }
 

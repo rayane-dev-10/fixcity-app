@@ -58,26 +58,36 @@ class _EcranSignInState extends State<EcranSignIn> {
   }
 
 
- String? _validerMotDePasse(String? value) {
-  final password = value ?? '';
+  String? _validerMotDePasse(String? value) {
+    final password = value ?? '';
 
-  if (password.isEmpty) {
-    return 'Mot de passe requis';
+    if (password.isEmpty) {
+      return 'Mot de passe requis';
+    }
+
+    if (password.length < 8) {
+      return 'Doit contenir au moins 8 caractères';
+    }
+
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      return 'Doit contenir une lettre majuscule';
+    }
+
+    if (!RegExp(r'[a-z]').hasMatch(password)) {
+      return 'Doit contenir une lettre minuscule';
+    }
+
+    if (!RegExp(r'\d').hasMatch(password)) {
+      return 'Doit contenir un chiffre';
+    }
+
+    if (!RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=;\/\\\[\]]')
+        .hasMatch(password)) {
+      return 'Doit contenir un caractère spécial';
+    }
+
+    return null;
   }
-
-  final valide = password.length >= 8 &&
-      RegExp(r'[A-Z]').hasMatch(password) &&
-      RegExp(r'[a-z]').hasMatch(password) &&
-      RegExp(r'\d').hasMatch(password) &&
-      RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=;\/\\\[\]]')
-          .hasMatch(password);
-
-  if (!valide) {
-    return 'doit contenir au moins 8 caractères, une lettre majuscule, une lettre minuscule, un caractère spécial et un chiffre';
-  }
-
-  return null;
-}
 
   String _extractErrorMessage(String body) {
     try {
@@ -359,12 +369,12 @@ class _EcranSignInState extends State<EcranSignIn> {
                           controller: _confirmeMdpController,
                           obscure: _obscureConfirme,
                           validator: (v) {
-                            final error = _validerMotDePasse(v);
-                            if (error != null) return error;
-
                             if (v != _mdpController.text) {
                               return 'Les deux mots de passe doivent être identiques';
                             }
+
+                            final error = _validerMotDePasse(v);
+                            if (error != null) return error;
 
                             return null;
                           },

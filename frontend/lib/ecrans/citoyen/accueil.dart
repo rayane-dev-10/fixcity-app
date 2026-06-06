@@ -144,6 +144,9 @@ class _EcranAccueilState extends State<EcranAccueil> {
   bool _positionChoisie = false;
 
   LatLng _positionActuelle = LatLng(36.7118, 4.0459);
+  LatLng? _positionAvantSelectionCarte;
+  LatLng? _centreCarteAvantSelection;
+  double? _zoomCarteAvantSelection;
 
   List<IncidentCommunaute> _signalementsVoisins = [];
   List<Map<String, dynamic>> _suggestionsLieux = [];
@@ -367,7 +370,7 @@ Future<void> _chargerSignalementsCarte() async {
       await prefs.setString('access_token', newAccess);
       
       // Relance la fonction pour charger les données avec le nouveau token
-      _chargerSignalementsCarte();
+      await _chargerSignalementsCarte();
     } else {
       // Échec du rafraîchissement -> On coupe le chargement et on redirige
       _redirectionLogin();
@@ -494,7 +497,7 @@ void _redirectionLogin() {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Veuillez indiquer la position de l'incident."),
-          backgroundColor: Colors.orange,
+          backgroundColor: Color.fromARGB(255, 255, 0, 0),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -618,7 +621,14 @@ void _redirectionLogin() {
           options: MapOptions(
             initialCenter: _positionActuelle,
             initialZoom: 14.0,
-            onTap: (_, _) => _popupLayerController.hideAllPopups(),
+            onTap: (_, _) {
+              _popupLayerController.hideAllPopups();
+              FocusScope.of(context).unfocus();
+
+              setState(() {
+                _suggestionsLieux = [];
+              });
+            },
             onPositionChanged: (position, hasGesture) {
               if (_modeSelection && position.center != null) {
                 _positionActuelle = position.center!;
@@ -629,6 +639,21 @@ void _redirectionLogin() {
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.fixcity.app',
+            ),
+            MarkerLayer(
+              markers: [
+                if (_positionChoisie)
+                  Marker(
+                    point: _positionActuelle,
+                    width: 45,
+                    height: 45,
+                    child: const Icon(
+                      Icons.location_on,
+                      color: Colors.red,
+                      size: 45,
+                    ),
+                  ),
+              ],
             ),
             if (!_modeSelection)
               PopupMarkerLayer(
@@ -744,22 +769,7 @@ void _redirectionLogin() {
                   ),
                 ),
               ),
-          MarkerLayer(
-            markers: [
-              ...marqueursSignalements,
-              if (_positionChoisie)
-                Marker(
-                  point: _positionActuelle,
-                  width: 45,
-                  height: 45,
-                  child: const Icon(
-                    Icons.location_on,
-                    color: Colors.red,
-                    size: 45,
-                  ),
-                ),
-            ],
-          ),
+
           ],
         ),
 
@@ -902,7 +912,12 @@ void _redirectionLogin() {
                   Icons.map,
                   "Choisir sur la carte",
                   () {
-                    setState(() => _modeSelection = true);
+                    setState(() {
+                      _positionAvantSelectionCarte = _positionActuelle;
+                      _centreCarteAvantSelection = _mapController.camera.center;
+                      _zoomCarteAvantSelection = _mapController.camera.zoom;
+                      _modeSelection = true;
+                    });
                   },
                 ),
                 _buildActionCircle(
@@ -955,7 +970,25 @@ void _redirectionLogin() {
                     height: 50,
                     child: OutlinedButton(
                       onPressed: () {
-                        setState(() => _modeSelection = false);
+                        final anciennePosition = _positionAvantSelectionCarte;
+                        final ancienCentreCarte = _centreCarteAvantSelection;
+                        final ancienZoomCarte = _zoomCarteAvantSelection;
+
+                        setState(() {
+                          _modeSelection = false;
+
+                          if (anciennePosition != null) {
+                            _positionActuelle = anciennePosition;
+                          }
+
+                          _positionAvantSelectionCarte = null;
+                          _centreCarteAvantSelection = null;
+                          _zoomCarteAvantSelection = null;
+                        });
+
+                        if (ancienCentreCarte != null && ancienZoomCarte != null) {
+                          _mapController.move(ancienCentreCarte, ancienZoomCarte);
+                        }
                       },
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: Colors.grey[400]!),
@@ -984,6 +1017,9 @@ void _redirectionLogin() {
                     setState(() {
                       _modeSelection = false;
                       _positionChoisie = true;
+                      _positionAvantSelectionCarte = null;
+                      _centreCarteAvantSelection = null;
+                      _zoomCarteAvantSelection = null;
                      });
 
                       _mapController.move(_positionActuelle, 15);

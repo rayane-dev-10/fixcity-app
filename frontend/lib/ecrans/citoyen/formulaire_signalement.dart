@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart'; // <--- AJOUT DU PACKAGE DE GÉOCODAGE
+import 'package:geocoding/geocoding.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,63 +22,60 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
   final _formKey = GlobalKey<FormState>();
   
   final _adresseController = TextEditingController();
+  String _wilayaExtraite = "Tizi Ouzou";
+  String _communeExtraite = "Tizi Ouzou";
   final _descriptionController = TextEditingController();
   String? _typeIncidentSelectionne;
 
   final ImagePicker _picker = ImagePicker();
   File? _imageSelectionnee; 
+  
+  // --- NOUVEAU : Variable pour gérer l'état de chargement
+  bool _isLoading = false;
 
   final List<String> _typesIncidents = [
-  'Assainissement',
-  'Espace Publique',
-  'Déchets',
-  'Eclairage Publique',
-  'Voirie',
+    'Assainissement',
+    'Espace Publique',
+    'Déchets',
+    'Eclairage Publique',
+    'Voirie',
   ];
 
   @override
   void initState() {
     super.initState();
-    // 1. On met d'abord les coordonnées par défaut pour ne pas laisser le champ vide
     _adresseController.text = "Chargement de l'adresse...";
-    // 2. On lance la recherche de la vraie adresse en tâche de fond
     _recupererVraieAdresse();
   }
+
   Future<String?> _uploadImageToCloudinary(File imageFile) async {
-  final cloudName = 'mounircld';
-  final uploadPreset = 'fixcity_preset';
+    final cloudName = 'mounircld';
+    final uploadPreset = 'fixcity_preset';
 
-  final url = Uri.parse(
-    'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
-  );
+    final url = Uri.parse(
+      'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+    );
 
-  final request = http.MultipartRequest('POST', url);
+    final request = http.MultipartRequest('POST', url);
+    request.fields['upload_preset'] = uploadPreset;
 
-  request.fields['upload_preset'] = uploadPreset;
+    request.files.add(
+      await http.MultipartFile.fromPath('file', imageFile.path),
+    );
 
-  request.files.add(
-    await http.MultipartFile.fromPath(
-      'file',
-      imageFile.path,
-    ),
-  );
+    final response = await request.send();
 
-  final response = await request.send();
+    if (response.statusCode == 200) {
+      final responseData = await response.stream.bytesToString();
+      final data = jsonDecode(responseData);
+      return data['secure_url'];
+    }
 
-  if (response.statusCode == 200) {
-    final responseData = await response.stream.bytesToString();
-    final data = jsonDecode(responseData);
-
-    return data['secure_url'];
+    return null;
   }
 
-  return null;
-}
-
-  // --- 🌍 FONCTION DE GÉOCODAGE INVERSÉ ---
   Future<void> _recupererVraieAdresse() async {
     try {
-      // On interroge le plugin avec la latitude et longitude reçues
       List<Placemark> placemarks = await placemarkFromCoordinates(
         widget.position.latitude, 
         widget.position.longitude
@@ -87,26 +84,39 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks.first;
         
-        // On construit une belle adresse propre (Rue, Ville, Code Postal...)
-        // Si la rue n'est pas détectée, on prend le nom du quartier ou de la ville
         String nomRue = place.street ?? "";
         String localite = place.locality ?? "";
+        String administrativeArea = place.administrativeArea ?? "";
         String codePostal = place.postalCode ?? "";
         
+        String wilaya = place.administrativeArea ?? place.subAdministrativeArea ?? place.locality ?? "";
+        wilaya = wilaya
+            .replaceAll(RegExp(r"Wilaya de|Province de|Wilaya d\' |Province|Wilaya", caseSensitive: false), '')
+            .trim();
+
+        String commune = place.subAdministrativeArea ?? place.locality ?? place.subLocality ?? "";
+        commune = commune
+            .replaceAll(RegExp(r"Daïra de |Commune de|Daïra d\'|Commune d\'|Commune|Municipality|Daïra|Town|City", caseSensitive: false), '')
+            .trim();
+
         setState(() {
-          if (nomRue.isNotEmpty && nomRue != place.locality) {
-            _adresseController.text = "$nomRue, $localite $codePostal".trim();
+          _wilayaExtraite = wilaya.isNotEmpty ? wilaya : "Tizi Ouzou";
+          _communeExtraite = commune.isNotEmpty ? commune : "Tizi Ouzou";
+
+          if (nomRue.isNotEmpty && nomRue != place.locality && nomRue != place.subAdministrativeArea) {
+            _adresseController.text = "$nomRue, $localite,$administrativeArea".trim();
           } else {
             _adresseController.text = "$localite $codePostal".trim();
           }
         });
       }
     } catch (e) {
-      // Si le téléphone n'a pas de réseau ou bug, on remet les coordonnées GPS brutes en secours
-      print("Erreur geocoding : $e");
       setState(() {
         _adresseController.text = 
             "${widget.position.latitude.toStringAsFixed(5)}, ${widget.position.longitude.toStringAsFixed(5)}";
+
+        _wilayaExtraite = "Tizi Ouzou";
+        _communeExtraite = "Tizi Ouzou";    
       });
     }
   }
@@ -134,6 +144,109 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
     _adresseController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  // --- FONCTION DE SOUMISSION OPTIMISÉE ET CORRIGÉE ---
+  Future<void> _soumettreFormulaire() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_imageSelectionnee == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Veuillez ajouter une photo de l'incident."),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Début du chargement
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? accessToken = prefs.getString('access_token');
+      bool isExpired = accessToken == null || JwtDecoder.isExpired(accessToken);
+
+      // 1. Vérification et rafraîchissement du token AVANT l'upload de l'image
+      if (isExpired) {
+        final refreshToken = prefs.getString('refresh_token');
+        if (refreshToken != null) {
+          final refreshResponse = await ApiService.refreshToken(refreshToken);
+          if (refreshResponse.statusCode == 200) {
+            final tokenData = jsonDecode(refreshResponse.body); // NOUVEAU NOM : tokenData
+            accessToken = tokenData['access'];
+            await prefs.setString('access_token', accessToken!);
+          } else {
+            throw Exception("Session expirée");
+          }
+        } else {
+          throw Exception("Session expirée");
+        }
+      }
+
+      // 2. Upload de l'image (une seule fois maintenant !)
+      final imageUrl = await _uploadImageToCloudinary(_imageSelectionnee!);
+      
+      if (imageUrl == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Erreur lors de l'envoi de l'image."), backgroundColor: Colors.red),
+        );
+        setState(() { _isLoading = false; });
+        return;
+      }
+
+      // 3. Préparation des données de l'incident (NOUVEAU NOM : incidentData)
+      final incidentData = {
+        "latitude": widget.position.latitude,
+        "longitude": widget.position.longitude,
+        "wilaya": _wilayaExtraite,
+        "commune": _communeExtraite,
+        "adresseLisible": _adresseController.text.trim(),
+        "url_image": imageUrl,
+        "description": _descriptionController.text.trim(),
+        "categorie": _typeIncidentSelectionne,
+      };
+
+      // 4. Envoi de la requête au serveur
+      final response = await ApiService.creerIncident(incidentData, accessToken);
+
+      if (!mounted) return;
+
+      if (response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Signalement envoyé avec succès."), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context, true);
+      } else {
+        final erreur = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(erreur.toString()), backgroundColor: Colors.red),
+        );
+      }
+
+    } catch (e) {
+      if (!mounted) return;
+      if (e.toString().contains("Session expirée")) {
+       //redirection vers login
+        Navigator.pushReplacementNamed(context, '/login');
+      } else {
+        print ("wilaya= $_wilayaExtraite");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Erreur de connexion au serveur."), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      // Fin du chargement peu importe le résultat
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -248,24 +361,37 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
 
                 const SizedBox(height: 30),
 
-                // --- BOUTON FINAL : ENVOYER ---
+                // --- BOUTON FINAL : ENVOYER (AVEC LOADING) ---
                 SizedBox(
                   width: double.infinity,
                   height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : () async {
                       await _soumettreFormulaire();
                     },
-                    icon: const Icon(Icons.send, color: Colors.white, size: 18),
-                    label: const Text(
-                      "Envoyer", 
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
-                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00964F),
+                      disabledBackgroundColor: const Color(0xFF00964F).withOpacity(0.7), // Couleur pendant le chargement
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
+                    child: _isLoading 
+                      ? const SizedBox(
+                          width: 24, 
+                          height: 24, 
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.send, color: Colors.white, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              "Envoyer", 
+                              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                            ),
+                          ],
+                        ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -393,140 +519,4 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
       ),
     );
   }
-
-Future<void> _soumettreFormulaire() async {
-  if (!_formKey.currentState!.validate()) return;
-
-  if (_imageSelectionnee == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Veuillez ajouter une photo de l'incident."),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    return;
-  }
-
-  try{
-    final acessToken = await SharedPreferences.getInstance().then((prefs) => prefs.getString('access_token'));
-    bool isExpired = JwtDecoder.isExpired(acessToken as String);
-    if(!isExpired){
-       final imageUrl = await _uploadImageToCloudinary(_imageSelectionnee!);
-      if (imageUrl == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Erreur lors de l'envoi de l'image."),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-      final data = {
-       "latitude": widget.position.latitude,
-       "longitude": widget.position.longitude,
-       "wilaya": "Tizi Ouzou",
-       "commune": "Tizi Ouzou",
-       "adresseLisible": _adresseController.text.trim(),
-       "url_image": imageUrl,
-       "description": _descriptionController.text.trim(),
-       "categorie": _typeIncidentSelectionne,
-      };
-
-     final response = await ApiService.creerIncident(data, acessToken);
-
-     if (!mounted) return;
-
-     if (response.statusCode == 201) {
-       ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(
-           content: Text("Signalement envoyé avec succès."),
-           backgroundColor: Colors.green,
-         ),
-       );
-
-       Navigator.pop(context, true);
-      } else {
-        final erreur = jsonDecode(response.body);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(erreur.toString()),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-    else{
-    //rafraichir le token d'acces et réessayer
-    final refreshToken = await SharedPreferences.getInstance().then((prefs) => prefs.getString('refresh_token'));
-    final refreshResponse = await ApiService.refreshToken(refreshToken as String);
-    if(refreshResponse.statusCode == 200){
-      final data = jsonDecode(refreshResponse.body);
-      final nouveauAccessToken = data['access'];
-      await SharedPreferences.getInstance().then((prefs) => prefs.setString('access_token', nouveauAccessToken));
-      //réessayer d'envoyer le signalement avec le nouveau token
-      final imageUrl = await _uploadImageToCloudinary(_imageSelectionnee!);
-      if (imageUrl == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Erreur lors de l'envoi de l'image."),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-      final dataIncident = {
-       "latitude": widget.position.latitude,
-       "longitude": widget.position.longitude,
-       "adresseLisible": _adresseController.text.trim(),
-       "wilaya": "Tizi Ouzou",
-       "commune": "Tizi Ouzou",
-       "url_image": imageUrl,
-       "description": _descriptionController.text.trim(),
-       "categorie": _typeIncidentSelectionne,
-      };
-
-     final response = await ApiService.creerIncident(dataIncident, nouveauAccessToken);
-
-     if (!mounted) return;
-
-      if (response.statusCode == 201) {
-       ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(
-           content: Text("Signalement envoyé avec succès."),
-           backgroundColor: Colors.green,
-         ),
-       );
-
-       Navigator.pop(context, true);
-      }else{
-        final erreur = jsonDecode(response.body);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(erreur.toString()),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-    else{
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Session expirée. Veuillez vous reconnecter."),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
- }catch(e){
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Erreur de connexion au serveur."),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
 }
-}  

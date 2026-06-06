@@ -1,14 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../utils/couleurs_app.dart';
 import '../citoyen/formulaire_signalement.dart';
+import '../citoyen/detail_signalement_citoyen.dart';
 import '../citoyen/mon_profil.dart';
 import '../citoyen/signalements.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -19,6 +22,10 @@ class IncidentCommunaute {
   final String statut;
   final String descriptionCourte;
   final LatLng coordonnees;
+  final String imageUrl;
+  final String dateSignalement;
+  final String citoyenEmail;
+  final String adresseLisible;
 
   IncidentCommunaute({
     required this.id,
@@ -26,18 +33,61 @@ class IncidentCommunaute {
     required this.statut,
     required this.descriptionCourte,
     required this.coordonnees,
+    this.imageUrl = '',
+    this.dateSignalement = '',
+    this.citoyenEmail = '',
+    this.adresseLisible = '',
   });
 
   factory IncidentCommunaute.fromJson(Map<String, dynamic> json) {
+    final citoyen = json['citoyen'];
+    final utilisateur = json['utilisateur'];
+    final user = json['user'];
+
     return IncidentCommunaute(
       id: json['id'].toString(),
       type: json['categorie']?.toString() ?? 'Type inconnu',
       statut: _normaliserStatut(json['statut']?.toString() ?? ''),
       descriptionCourte: json['description']?.toString() ?? '',
       coordonnees: LatLng(
-        double.tryParse(json['lat']?.toString() ?? '') ?? 0,
-        double.tryParse(json['long']?.toString() ?? '') ?? 0,
+        double.tryParse(
+              json['lat']?.toString() ??
+                  json['latitude']?.toString() ??
+                  '',
+            ) ??
+            0,
+        double.tryParse(
+              json['long']?.toString() ??
+                  json['longitude']?.toString() ??
+                  '',
+            ) ??
+            0,
       ),
+      imageUrl: json['url_image']?.toString() ??
+          json['imageUrl']?.toString() ??
+          json['image_url']?.toString() ??
+          json['photo']?.toString() ??
+          '',
+      dateSignalement: json['date_signalement']?.toString() ??
+          json['dateSignalement']?.toString() ??
+          json['created_at']?.toString() ??
+          json['date_creation']?.toString() ??
+          json['date']?.toString() ??
+          '',
+      citoyenEmail: json['citoyen_email']?.toString() ??
+          json['email_citoyen']?.toString() ??
+          (citoyen is String ? citoyen : null) ??
+          (citoyen is Map ? citoyen['email']?.toString() : null) ??
+          (utilisateur is String ? utilisateur : null) ??
+          (utilisateur is Map ? utilisateur['email']?.toString() : null) ??
+          (user is String ? user : null) ??
+          (user is Map ? user['email']?.toString() : null) ??
+          '',
+      adresseLisible: json['adresseLisible']?.toString() ??
+          json['adresse_lisible']?.toString() ??
+          json['adresse']?.toString() ??
+          json['localisation_adresse']?.toString() ??
+          '',
     );
   }
 
@@ -83,15 +133,20 @@ class _EcranAccueilState extends State<EcranAccueil> {
 
   final MapController _mapController = MapController();
   final PopupController _popupLayerController = PopupController();
+  final TextEditingController _rechercheLieuController = TextEditingController();
+  Timer? _debounceRecherche;
 
   bool _modeSelection = false;
   bool _chargementGps = false;
+  bool _chargementRechercheLieu = false;
+  bool _chargementSuggestions = false;
   bool _chargementSignalements = false;
   bool _positionChoisie = false;
 
   LatLng _positionActuelle = LatLng(36.7118, 4.0459);
 
   List<IncidentCommunaute> _signalementsVoisins = [];
+  List<Map<String, dynamic>> _suggestionsLieux = [];
 
   @override
   void initState() {
@@ -100,9 +155,153 @@ class _EcranAccueilState extends State<EcranAccueil> {
 
   @override
   void dispose() {
+    _debounceRecherche?.cancel();
+    _rechercheLieuController.dispose();
     _popupLayerController.dispose();
     super.dispose();
   }
+
+
+Future<void> _rechercherLieu() async {
+  final recherche = _rechercheLieuController.text.trim();
+
+  if (recherche.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Veuillez écrire un lieu à rechercher."),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return;
+  }
+
+  FocusScope.of(context).unfocus();
+  setState(() => _chargementRechercheLieu = true);
+
+  try {
+    await _chercherSuggestionsLieux(recherche, afficherChargement: false);
+
+    if (!mounted) return;
+
+    if (_suggestionsLieux.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Aucun lieu trouvé."),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    await _selectionnerSuggestionLieu(_suggestionsLieux.first);
+  } catch (erreur) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Lieu introuvable : ${erreur.toString()}"),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _chargementRechercheLieu = false);
+    }
+  }
+}
+
+Future<void> _chercherSuggestionsLieux(
+  String texte, {
+  bool afficherChargement = true,
+}) async {
+  final recherche = texte.trim();
+
+  if (recherche.length < 3) {
+    if (!mounted) return;
+    setState(() {
+      _suggestionsLieux = [];
+      _chargementSuggestions = false;
+    });
+    return;
+  }
+
+  if (afficherChargement) {
+    setState(() => _chargementSuggestions = true);
+  }
+
+  try {
+    final uri = Uri.https(
+      'nominatim.openstreetmap.org',
+      '/search',
+      {
+        'q': recherche,
+        'format': 'json',
+        'addressdetails': '1',
+        'limit': '5',
+        'countrycodes': 'dz',
+      },
+    );
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'User-Agent': 'FixCity/1.0 (psdmounir@gmail.com)',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (!mounted) return;
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      if (data is List) {
+        setState(() {
+          _suggestionsLieux = data
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+        });
+      }
+    } else {
+      setState(() => _suggestionsLieux = []);
+    }
+  } catch (_) {
+    if (!mounted) return;
+    setState(() => _suggestionsLieux = []);
+  } finally {
+    if (mounted && afficherChargement) {
+      setState(() => _chargementSuggestions = false);
+    }
+  }
+}
+
+Future<void> _selectionnerSuggestionLieu(Map<String, dynamic> lieu) async {
+  final latitude = double.tryParse(lieu['lat']?.toString() ?? '');
+  final longitude = double.tryParse(lieu['lon']?.toString() ?? '');
+  final nomLieu = lieu['display_name']?.toString() ?? '';
+
+  if (latitude == null || longitude == null) return;
+
+  final nouvellePosition = LatLng(latitude, longitude);
+
+  setState(() {
+    _positionActuelle = nouvellePosition;
+    _positionChoisie = true;
+    _modeSelection = false;
+    _rechercheLieuController.text = nomLieu;
+    _suggestionsLieux = [];
+  });
+
+  FocusScope.of(context).unfocus();
+  _popupLayerController.hideAllPopups();
+  _mapController.move(nouvellePosition, 16);
+
+  await _chargerSignalementsCarte();
+}
 
 Future<void> _chargerSignalementsCarte() async {
   if (!_positionChoisie) return;
@@ -310,6 +509,28 @@ void _redirectionLogin() {
     _ouvrirFormulaireSignalement(pos);
   }
 
+
+  void _ouvrirDetailsSignalement(IncidentCommunaute incident) {
+    _popupLayerController.hideAllPopups();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EcranDetailSignalementCitoyen(
+          id: incident.id,
+          type: incident.type,
+          statut: incident.statut,
+          description: incident.descriptionCourte,
+          coordonnees: incident.coordonnees,
+          imageUrl: incident.imageUrl,
+          dateSignalement: incident.dateSignalement,
+          citoyenEmail: incident.citoyenEmail,
+          adresseLisible: incident.adresseLisible,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -388,16 +609,7 @@ void _redirectionLogin() {
       );
     }
 
-    final Marker marqueurUtilisateur = Marker(
-      point: _positionActuelle,
-      width: 45,
-      height: 45,
-      child: Icon(
-        Icons.location_on,
-        color: _positionChoisie ? Colors.red : Colors.grey,
-        size: 45,
-      ),
-    );
+
 
     return Stack(
       children: [
@@ -500,6 +712,30 @@ void _redirectionLogin() {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 32,
+                                child: ElevatedButton(
+                                  onPressed: () => _ouvrirDetailsSignalement(incident),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: CouleursApp.primaire,
+                                    elevation: 0,
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    "Voir détails",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -508,12 +744,22 @@ void _redirectionLogin() {
                   ),
                 ),
               ),
-            MarkerLayer(
-              markers: [
-                ...marqueursSignalements,
-                marqueurUtilisateur,
-              ],
-            ),
+          MarkerLayer(
+            markers: [
+              ...marqueursSignalements,
+              if (_positionChoisie)
+                Marker(
+                  point: _positionActuelle,
+                  width: 45,
+                  height: 45,
+                  child: const Icon(
+                    Icons.location_on,
+                    color: Colors.red,
+                    size: 45,
+                  ),
+                ),
+            ],
+          ),
           ],
         ),
 
@@ -525,50 +771,6 @@ void _redirectionLogin() {
                 Icons.location_searching_rounded,
                 color: CouleursApp.primaire,
                 size: 45,
-              ),
-            ),
-          ),
-
-        if (_chargementGps || _chargementSignalements)
-          Positioned(
-            top: 140,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: CouleursApp.primaire,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _chargementGps
-                            ? "Localisation en cours..."
-                            : "Chargement des signalements...",
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ),
           ),
@@ -632,6 +834,61 @@ void _redirectionLogin() {
             ),
           ),
         ),
+
+        if (!_modeSelection)
+          Positioned(
+            top: 135,
+            left: 35,
+            right: 35,
+            child: _buildBarreRechercheLieu(),
+          ),
+
+        if (_chargementGps || _chargementRechercheLieu || _chargementSignalements)
+          Positioned(
+            top: 190,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: CouleursApp.primaire,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        _chargementGps
+                            ? "Localisation en cours..."
+                            : _chargementRechercheLieu
+                                ? "Recherche du lieu..."
+                                : "Chargement des signalements...",
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
 
         if (!_modeSelection) ...[
           Positioned(
@@ -806,6 +1063,136 @@ void _redirectionLogin() {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+
+  Widget _buildBarreRechercheLieu() {
+    return Material(
+      color: Colors.transparent,
+      child: Column(
+        children: [
+          Container(
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _rechercheLieuController,
+              textInputAction: TextInputAction.search,
+              onChanged: (valeur) {
+                setState(() {});
+                _debounceRecherche?.cancel();
+                _debounceRecherche = Timer(
+                  const Duration(milliseconds: 500),
+                  () => _chercherSuggestionsLieux(valeur),
+                );
+              },
+              onSubmitted: (_) => _rechercherLieu(),
+              decoration: InputDecoration(
+                hintText: "Rechercher un lieu...",
+                hintStyle: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 13,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Color(0xFF00964F),
+                  size: 21,
+                ),
+                suffixIcon: _chargementSuggestions
+                    ? const Padding(
+                        padding: EdgeInsets.all(14),
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : _rechercheLieuController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.close, size: 19),
+                            color: Colors.grey,
+                            onPressed: () {
+                              _debounceRecherche?.cancel();
+                              setState(() {
+                                _rechercheLieuController.clear();
+                                _suggestionsLieux = [];
+                              });
+                            },
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.arrow_forward_rounded, size: 21),
+                            color: const Color(0xFF00964F),
+                            onPressed: _rechercherLieu,
+                          ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ),
+
+          if (_suggestionsLieux.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              constraints: const BoxConstraints(maxHeight: 230),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: _suggestionsLieux.length,
+                separatorBuilder: (_, _) => Divider(
+                  height: 1,
+                  color: Colors.grey[200],
+                ),
+                itemBuilder: (context, index) {
+                  final lieu = _suggestionsLieux[index];
+                  final nom = lieu['display_name']?.toString() ?? 'Lieu inconnu';
+
+                  return ListTile(
+                    dense: true,
+                    leading: const Icon(
+                      Icons.place_outlined,
+                      color: Color(0xFF00964F),
+                      size: 20,
+                    ),
+                    title: Text(
+                      nom,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () => _selectionnerSuggestionLieu(lieu),
+                  );
+                },
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -11,6 +11,7 @@ class EcranDetailSignalementAdmin extends StatefulWidget {
   final String imageUrl;
   final String dateSignalement;
   final String citoyenEmail;
+  final String adresseLisible;
 
   const EcranDetailSignalementAdmin({
     super.key,
@@ -18,6 +19,7 @@ class EcranDetailSignalementAdmin extends StatefulWidget {
     this.imageUrl = '',
     this.dateSignalement = '',
     this.citoyenEmail = '',
+    this.adresseLisible = '',
   });
 
   @override
@@ -185,12 +187,19 @@ class _EcranDetailSignalementAdminState
                     ],
                   ),
                 ),
-                Text(
-                  "Tizi Ouzou, Algérie",
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                Flexible(
+                  child: Text(
+                    widget.adresseLisible.isEmpty
+                        ? "Position du signalement"
+                        : widget.adresseLisible,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -230,11 +239,11 @@ class _EcranDetailSignalementAdminState
             const SizedBox(height: 12),
 
             _buildInfoBloc(
-              titre: "Coordonnées GPS",
-              contenu:
-                  "${widget.incident.coordonnees.latitude.toStringAsFixed(5)}, "
-                  "${widget.incident.coordonnees.longitude.toStringAsFixed(5)}",
-              icon: Icons.location_on_outlined,
+              titre: "Adresse",
+              contenu: widget.adresseLisible.isEmpty
+                  ? "Adresse non disponible"
+                  : widget.adresseLisible,
+              icon: Icons.place_outlined,
             ),
 
             const SizedBox(height: 18),

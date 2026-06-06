@@ -16,12 +16,12 @@ class EcranProfilAdmin extends StatefulWidget {
 class _EcranProfilAdminState extends State<EcranProfilAdmin> {
   String _nomPrenom = "";
   String _email = "";
-  String _servicePublic = "Service public";
-  String _wilaya = "Tizi Ouzou";
+  String _servicePublic = "Service non défini";
+  String _wilaya = "Wilaya non définie";
 
   int _incidentsResolusCount = 0;
   int _incidentsEnCoursCount = 0;
-  int _totalSignalements = 0;
+  int _signalementsPasTraitesCount = 0;
 
   bool _isLoading = true;
 
@@ -42,6 +42,7 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
       if (!mounted) return;
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print("PROFILE AGENT DATA = $data");
 
         final firstName = data['first_name']?.toString() ?? "";
         final lastName = data['last_name']?.toString() ?? "";
@@ -55,14 +56,19 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
 
           _email = data['email']?.toString() ?? "";
 
-          _totalSignalements =
-              int.tryParse(data['total_signalements'].toString()) ?? 0;
+          _servicePublic =
+              data['service_public']?.toString() ?? "Service non défini";
+
+          _wilaya = data['wilaya']?.toString() ?? "Wilaya non définie";
+
+          _signalementsPasTraitesCount =
+              int.tryParse(data['signalements_pas_traites']?.toString() ?? '0') ?? 0;
 
           _incidentsEnCoursCount =
-              int.tryParse(data['signalements_en_cours'].toString()) ?? 0;
+              int.tryParse(data['signalements_en_cours']?.toString() ?? '0') ?? 0;
 
           _incidentsResolusCount =
-              int.tryParse(data['signalements_resolus'].toString()) ?? 0;
+              int.tryParse(data['signalements_resolus']?.toString() ?? '0') ?? 0;
 
           _isLoading = false;
         });
@@ -230,9 +236,9 @@ class _EcranProfilAdminState extends State<EcranProfilAdmin> {
                 children: [
                   Expanded(
                     child: _buildStatSimple(
-                      "Total",
-                      "$_totalSignalements",
-                      Colors.blueGrey,
+                      "Pas traités",
+                      "$_signalementsPasTraitesCount",
+                      Colors.red,
                     ),
                   ),
                   Container(height: 30, width: 1, color: Colors.grey.shade300),

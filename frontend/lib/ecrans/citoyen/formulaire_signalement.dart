@@ -26,8 +26,7 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
   String? _typeIncidentSelectionne;
 
   final ImagePicker _picker = ImagePicker();
-  final List<File> _imagesSelectionnees = []; 
-  final int _maxImages = 3; 
+  File? _imageSelectionnee; 
 
   final List<String> _typesIncidents = [
   'Assainissement',
@@ -112,44 +111,22 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
     }
   }
 
-  Future<void> _recupererImagesGalerie() async {
-    if (_imagesSelectionnees.length >= _maxImages) {
-      _afficherAlerteLimite();
-      return;
-    }
-    final List<XFile> images = await _picker.pickMultiImage();
-    if (images.isNotEmpty) {
+  Future<void> _recupererImageGalerie() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
       setState(() {
-        for (var image in images) {
-          if (_imagesSelectionnees.length < _maxImages) {
-            _imagesSelectionnees.add(File(image.path));
-          }
-        }
+        _imageSelectionnee = File(image.path);
       });
     }
   }
 
   Future<void> _prendrePhotoCamera() async {
-    if (_imagesSelectionnees.length >= _maxImages) {
-      _afficherAlerteLimite();
-      return;
-    }
     final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
     if (photo != null) {
       setState(() {
-        _imagesSelectionnees.add(File(photo.path));
+        _imageSelectionnee = File(photo.path);
       });
     }
-  }
-
-  void _afficherAlerteLimite() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Vous pouvez ajouter 3 photos maximum."),
-        backgroundColor: Colors.orange,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
@@ -185,26 +162,21 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 
-                // --- SECTION 1 : PHOTOS ---
+                // --- SECTION 1 : PHOTO ---
                 _buildSectionCadre(
-                  titre: "Photos",
+                  titre: "Photo",
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(_maxImages, (index) {
-                          if (index < _imagesSelectionnees.length) {
-                            return _buildApercuImageReelle(_imagesSelectionnees[index], index);
-                          } else {
-                            return _buildCaseImageVide();
-                          }
-                        }),
+                      Center(
+                        child: _imageSelectionnee != null
+                            ? _buildApercuImageReelle(_imageSelectionnee!)
+                            : _buildCaseImageVide(),
                       ),
                       const SizedBox(height: 20),
                       _buildBoutonActionPhoto(
                         icone: Icons.file_upload_outlined,
-                        label: "Ajouter des images",
-                        auClic: _recupererImagesGalerie,
+                        label: "Ajouter une image",
+                        auClic: _recupererImageGalerie,
                       ),
                       const SizedBox(height: 12),
                       _buildBoutonActionPhoto(
@@ -322,34 +294,36 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
     );
   }
 
-  Widget _buildApercuImageReelle(File imageFile, int index) {
+  Widget _buildApercuImageReelle(File imageFile) {
     return Container(
-      width: 85, height: 85,
+      width: double.infinity,
+      height: 170,
       decoration: BoxDecoration(
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(12),
         image: DecorationImage(
-          image: FileImage(imageFile), 
+          image: FileImage(imageFile),
           fit: BoxFit.cover,
         ),
       ),
       child: Stack(
         children: [
           Positioned(
-            top: 4, right: 4,
+            top: 8,
+            right: 8,
             child: GestureDetector(
               onTap: () {
                 setState(() {
-                  _imagesSelectionnees.removeAt(index); 
+                  _imageSelectionnee = null;
                 });
               },
               child: Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(6),
                 decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                child: const Icon(Icons.close, color: Colors.white, size: 14),
+                child: const Icon(Icons.close, color: Colors.white, size: 18),
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -357,12 +331,23 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
 
   Widget _buildCaseImageVide() {
     return Container(
-      width: 85, height: 85,
+      width: double.infinity,
+      height: 170,
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey[300]!, width: 1.5),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Icon(Icons.image_outlined, color: Colors.grey, size: 28),
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.image_outlined, color: Colors.grey, size: 34),
+          SizedBox(height: 8),
+          Text(
+            "Aucune image sélectionnée",
+            style: TextStyle(color: Colors.grey, fontSize: 14),
+          ),
+        ],
+      ),
     );
   }
 
@@ -412,7 +397,7 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
 Future<void> _soumettreFormulaire() async {
   if (!_formKey.currentState!.validate()) return;
 
-  if (_imagesSelectionnees.isEmpty) {
+  if (_imageSelectionnee == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Veuillez ajouter une photo de l'incident."),
@@ -427,7 +412,7 @@ Future<void> _soumettreFormulaire() async {
     final acessToken = await SharedPreferences.getInstance().then((prefs) => prefs.getString('access_token'));
     bool isExpired = JwtDecoder.isExpired(acessToken as String);
     if(!isExpired){
-       final imageUrl = await _uploadImageToCloudinary(_imagesSelectionnees.first);
+       final imageUrl = await _uploadImageToCloudinary(_imageSelectionnee!);
       if (imageUrl == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -442,6 +427,7 @@ Future<void> _soumettreFormulaire() async {
        "longitude": widget.position.longitude,
        "wilaya": "Tizi Ouzou",
        "commune": "Tizi Ouzou",
+       "adresseLisible": _adresseController.text.trim(),
        "url_image": imageUrl,
        "description": _descriptionController.text.trim(),
        "categorie": _typeIncidentSelectionne,
@@ -480,7 +466,7 @@ Future<void> _soumettreFormulaire() async {
       final nouveauAccessToken = data['access'];
       await SharedPreferences.getInstance().then((prefs) => prefs.setString('access_token', nouveauAccessToken));
       //réessayer d'envoyer le signalement avec le nouveau token
-      final imageUrl = await _uploadImageToCloudinary(_imagesSelectionnees.first);
+      final imageUrl = await _uploadImageToCloudinary(_imageSelectionnee!);
       if (imageUrl == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -493,6 +479,7 @@ Future<void> _soumettreFormulaire() async {
       final dataIncident = {
        "latitude": widget.position.latitude,
        "longitude": widget.position.longitude,
+       "adresseLisible": _adresseController.text.trim(),
        "wilaya": "Tizi Ouzou",
        "commune": "Tizi Ouzou",
        "url_image": imageUrl,

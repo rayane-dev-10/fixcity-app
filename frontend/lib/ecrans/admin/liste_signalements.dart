@@ -9,6 +9,7 @@ import 'detail_signalement_admin.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/login.dart';
 class SignalementAdmin {
+  
   final int id;
   final String type;
   final String imageUrl;
@@ -16,6 +17,7 @@ class SignalementAdmin {
   final String description;
   final String dateCreation;
   final String citoyenEmail;
+  final String adresseLisible;
   final LatLng coordonnees;
 
   SignalementAdmin({
@@ -26,6 +28,7 @@ class SignalementAdmin {
     required this.description,
     required this.dateCreation,
     required this.citoyenEmail,
+    required this.adresseLisible,
     required this.coordonnees,
   });
 
@@ -38,6 +41,10 @@ class SignalementAdmin {
       description: json['description']?.toString() ?? '',
       dateCreation: json['date_signalement']?.toString() ?? '',
       citoyenEmail: json['citoyen']?.toString() ?? '',
+          adresseLisible: json['adresseLisible']?.toString() ??
+        json['adresse_lisible']?.toString() ??
+        json['adresse']?.toString() ??
+        '',
       coordonnees: LatLng(
         double.tryParse(json['lat']?.toString() ?? '') ?? 0,
         double.tryParse(json['long']?.toString() ?? '') ?? 0,
@@ -337,10 +344,12 @@ class _EcranListeSignalementsAdminState
                 statut: signalement.statut,
                 descriptionCourte: signalement.description,
                 coordonnees: signalement.coordonnees,
+                adresseLisible: signalement.adresseLisible,
               ),
               imageUrl: signalement.imageUrl,
               dateSignalement: signalement.dateCreation,
               citoyenEmail: signalement.citoyenEmail,
+              adresseLisible: signalement.adresseLisible,
             ),
           ),
         );

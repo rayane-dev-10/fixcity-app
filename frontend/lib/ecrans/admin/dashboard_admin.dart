@@ -20,6 +20,7 @@ class IncidentCommunaute {
   final String imageUrl;
   final String dateSignalement;
   final String citoyenEmail;
+  final String adresseLisible;
 
   IncidentCommunaute({
     required this.id,
@@ -30,6 +31,7 @@ class IncidentCommunaute {
     this.imageUrl = '',
     this.dateSignalement = '',
     this.citoyenEmail = '',
+    this.adresseLisible = '',
   });
 }
 
@@ -43,6 +45,7 @@ class DashboardAdmin extends StatefulWidget {
 class _DashboardAdminState extends State<DashboardAdmin> {
   int _indexSelectionne = 0;
   int _refreshListeKey = 0;
+  int _refreshProfilKey = 0;
 
   bool _isLoading = true;
   String? _messageErreur;
@@ -128,6 +131,10 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                     dateSignalement:
                         item['date_signalement']?.toString() ?? '',
                     citoyenEmail: item['citoyen']?.toString() ?? '',
+                    adresseLisible: item['adresseLisible']?.toString() ??
+                        item['adresse_lisible']?.toString() ??
+                        item['adresse']?.toString() ??
+                        '',
                   );
                 })
                 .where(
@@ -204,7 +211,9 @@ class _DashboardAdminState extends State<DashboardAdmin> {
           EcranListeSignalementsAdmin(
             key: ValueKey(_refreshListeKey),
           ),
-          const EcranProfilAdmin(),
+          EcranProfilAdmin(
+            key: ValueKey(_refreshProfilKey),
+          ),
         ],
       ),
       bottomNavigationBar: Container(
@@ -455,6 +464,8 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                             dateSignalement:
                                 _incidentSelectionne!.dateSignalement,
                             citoyenEmail: _incidentSelectionne!.citoyenEmail,
+                            adresseLisible:
+                                _incidentSelectionne!.adresseLisible,
                           ),
                         ),
                       );
@@ -464,6 +475,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
 
                       setState(() {
                         _refreshListeKey++;
+                        _refreshProfilKey++;
                         _incidentSelectionne = null;
                       });
 
@@ -533,6 +545,12 @@ class _DashboardAdminState extends State<DashboardAdmin> {
 
           if (index == 0) {
             await _chargerIncidentsService();
+          }
+
+          if (index == 2) {
+            setState(() {
+              _refreshProfilKey++;
+            });
           }
         },
         child: Container(

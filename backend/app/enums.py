@@ -59,7 +59,7 @@ class Commune(models.TextChoices):
     MEKLA = '1550', 'Mekla'
     TIZI_N_TLETA = '1551', "Tizi N'Tleta"
     AIT_YENNI = '1552', 'Aït Yenni'
-    AGHRIBS = '1553', 'Aghribs'
+    AGHRIB = '1553', 'Aghrib'
     IFLISSEN = '1554', 'Iflissen'
     BOUDJIMA = '1555', 'Boudjima'
     AIT_YAHIA_MOUSSA = '1556', 'Aït Yahia Moussa'

@@ -74,7 +74,7 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
     return null;
   }
 
-  Future<void> _recupererVraieAdresse() async {
+ /* Future<void> _recupererVraieAdresse() async {
     try {
       List<Placemark> placemarks = await placemarkFromCoordinates(
         widget.position.latitude, 
@@ -117,6 +117,109 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
 
         _wilayaExtraite = "Tizi Ouzou";
         _communeExtraite = "Tizi Ouzou";    
+      });
+    }
+  }*/
+
+  Future<void> _recupererVraieAdresse() async {
+    try {
+      final double lat = widget.position.latitude;
+      final double lon = widget.position.longitude;
+
+      // URL de l'API Nominatim (zoom=18 correspond au niveau des rues)
+      final Uri url = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&zoom=18&addressdetails=1&accept-language=fr'
+      );
+
+      // Appel HTTP avec User-Agent (REMPLACE PAR TON EMAIL/NOM D'APP)
+      final response = await http.get(url, headers: {
+        'User-Agent': 'FixCity/1.0 (rayanefghl@gmail.com)' 
+      });
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+
+        if (data.containsKey('address')) {
+          final Map<String, dynamic> address = data['address'];
+
+          // 1. Extraction de la rue
+          String nomRue = address['road'] ?? "";
+          //2.Extraction du village
+          String village = address['village'] ?? "";
+          // 2. Extraction de la Wilaya (souvent 'state' ou 'province' en Algérie)
+          String rawWilaya = address['state'] ?? address['province'] ?? "";
+
+          // 3. Extraction de la Commune
+          // On cherche d'abord dans les clés standards
+          String rawCommune = address['city'] ?? address['town'] ?? "";
+
+          // CORRECTIF : Si c'est vide, on fouille dans le display_name (ex: pour Aghrib)
+          if (rawCommune.isEmpty && data['display_name'] != null) {
+            List<String> displayParts = (data['display_name'] as String).split(', ');
+            
+            String daira = address['county'] ?? "";
+            String wilaya = address['state'] ?? address['province'] ?? "";
+
+            int dairaIndex = displayParts.indexOf(daira);
+            if (dairaIndex > 0) {
+              rawCommune = displayParts[dairaIndex - 1]; 
+            } else {
+              int wilayaIndex = displayParts.indexOf(wilaya);
+              if (wilayaIndex > 0) {
+                rawCommune = displayParts[wilayaIndex - 1];
+              }
+            }
+          }
+
+          // Fallback ultime : on prend le village ou quartier si la commune reste introuvable
+          if (rawCommune.isEmpty) {
+            rawCommune = address['village'] ?? address['suburb'] ?? address['neighbourhood'] ?? "";
+          }
+
+          // 5. Mise à jour de l'interface
+          setState(() {
+            _wilayaExtraite = rawWilaya.isNotEmpty ? rawWilaya : "Tizi Ouzou";
+            _communeExtraite = rawCommune.isNotEmpty ? rawCommune : "Tizi Ouzou";
+            // Construction de l'adresse finale lisible (sans code postal, sans pays)
+            List<String> addressParts = [];
+            
+            if (nomRue.isNotEmpty) {
+              addressParts.add(nomRue);
+            }
+            if(village.isNotEmpty){
+              addressParts.add(village);
+            }
+            if (_communeExtraite.isNotEmpty) {
+              addressParts.add(_communeExtraite);
+            }
+
+            
+            if (_wilayaExtraite.isNotEmpty) {
+              addressParts.add(_wilayaExtraite);
+            }
+
+            // Application au contrôleur de texte
+            if (addressParts.isNotEmpty) {
+              _adresseController.text = addressParts.join(', ').trim();
+            } else {
+              // Si on n'a vraiment rien trouvé de lisible, on affiche les coordonnées
+              _adresseController.text = "$lat, $lon";
+            }
+          });
+        } else {
+          throw Exception("Aucune adresse trouvée dans la réponse.");
+        }
+      } else {
+        throw Exception("Erreur serveur Nominatim : ${response.statusCode}");
+      }
+    } catch (e) {
+      // Fallback de sécurité en cas d'erreur (pas d'internet, timeout, etc.)
+      setState(() {
+        _adresseController.text =
+            "${widget.position.latitude.toStringAsFixed(5)}, ${widget.position.longitude.toStringAsFixed(5)}";
+
+        _wilayaExtraite = "Tizi Ouzou";
+        _communeExtraite = "Tizi Ouzou";
       });
     }
   }
@@ -234,7 +337,7 @@ class _EcranFormulaireSignalementState extends State<EcranFormulaireSignalement>
        //redirection vers login
         Navigator.pushReplacementNamed(context, '/login');
       } else {
-        print ("wilaya= $_wilayaExtraite");
+        print ("commune= $_communeExtraite");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Erreur de connexion au serveur."), backgroundColor: Colors.red),
         );

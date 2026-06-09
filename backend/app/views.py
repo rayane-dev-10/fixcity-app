@@ -150,11 +150,7 @@ def update_statut_incident(request, incident_id):
 
         serializer = IncidentUrbainSerializer(incident)
         #on supprime les données en cache pour rafraichir les données lors de la prochaine requete get
-        cache.delete(f"service_reports_data_{request.user.service.id}")
-        cache.delete(f"reports_data_for_user_{incident.citoyen.id}")
-        cache.delete_pattern(f"nearby_reports_data_for_user_{incident.citoyen.id}_lat_*_lon_*")
-        cache.delete(f"user_profile_data_{incident.citoyen.id}") #mettre a jour les données du profil du citoyen
-        cache.delete(f"user_profile_data_{request.user.id}")# mettre a jour les données du profil de l'agent
+        cache.clear()
         return Response(serializer.data, status=status.HTTP_200_OK)
     else:
         return Response({"message":"statut non indiqué ou invalide"},status=status.HTTP_400_BAD_REQUEST)

@@ -31,7 +31,7 @@ class MyUserAdmin(UserAdmin):
             'classes': ('wide',),
             'fields': ('first_name','last_name','email', 'password','service')
         }),
-        ('Permissions',{'fields':('is_citoyen','is_agent','is_staff'),})
+        ('Permissions',{'fields':('is_agent','is_staff'),})
     )
        
     class Media:

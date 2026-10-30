@@ -71,3 +71,16 @@ fixcity-app/
 ├── .gitignore                    # Fichiers et dossiers ignorés par Git
 └── README.md                     # Documentation officielle du projet
 
+## Prérequis
+
+Avant de lancer le projet, assurez-vous d'avoir installé les outils suivants sur votre machine :
+
+### Pour le Back-end (Django & API)
+* **Python** (version recommandée : 3.10 ou supérieure)
+* **Conda** (pour la gestion de l'environnement virtuel et des dépendances via le fichier `environment.yml`)
+* **PostgreSQL / PostGIS** (pour la gestion de la base de données relationnelle et spatiale)
+
+### Pour le Front-end (Application Mobile - Flutter)
+* **Flutter SDK** (version compatible avec le projet)
+* **Dart SDK** (inclus avec Flutter)
+* Un émulateur (Android/iOS) ou un appareil physique connecté, ou les outils de compilation pour le bureau/web.

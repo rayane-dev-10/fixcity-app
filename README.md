@@ -84,3 +84,5 @@ Avant de lancer le projet, assurez-vous d'avoir installé les outils suivants su
 * **Flutter SDK** (version compatible avec le projet)
 * **Dart SDK** (inclus avec Flutter)
 * Un émulateur (Android/iOS) ou un appareil physique connecté, ou les outils de compilation pour le bureau/web.
+
+**ET N'OUBLIEZ SURTOUT PAS DE MODIFIER LE NOM DU FICHIER BACKEND ".env.example" EN ".env" ET LE CONFIGURER** 

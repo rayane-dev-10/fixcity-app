@@ -1,6 +1,7 @@
 # FixCity
 FixCity est une application mobile de signalement d'incidents urbains en Algérie.Le citoyen signale un problème (voirie, éclairage publique, assainissement, etc),le signalement est envoyé vers le plus proche service publique concerné pour procéder à son traitement, facilitant ainsi la communication entre les citoyens et autorités publiques.
 ---
+
 ## Fonctionnalités principales
 
 ### 1. Espace Citoyen (Application Mobile)
@@ -20,6 +21,7 @@ FixCity est une application mobile de signalement d'incidents urbains en Algéri
 * **Gestion centralisée des données :** Accès global à l'ensemble des données de l'application (utilisateurs, signalements, catégories).
 * **Gestion des comptes des services publics :** Création et configuration des accès (comptes) pour chaque service public, leur permettant de se connecter à l'application mobile et de traiter les signalements qui leur sont routés.
 ---
+
 ## Arborescence du projet
 
 ```text
@@ -71,6 +73,7 @@ fixcity-app/
 └── README.md                     # Documentation officielle du projet
 ```
 ---
+
 ## Prérequis
 
 Avant de lancer le projet, assurez-vous d'avoir installé les outils suivants sur votre machine :

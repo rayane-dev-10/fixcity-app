@@ -21,7 +21,7 @@ FixCity est une application mobile de signalement d'incidents urbains en Algéri
 * **Gestion centralisée des données :** Accès global à l'ensemble des données de l'application (utilisateurs, signalements, catégories).
 * **Gestion des comptes des services publics :** Création et configuration des accès (comptes) pour chaque service public, leur permettant de se connecter à l'application mobile et de traiter les signalements qui leur sont routés.
 
-##Arborescence du projet
+## Arborescence du projet
 
 ```text
 fixcity-app/
@@ -70,7 +70,7 @@ fixcity-app/
 │
 ├── .gitignore                    # Fichiers et dossiers ignorés par Git
 └── README.md                     # Documentation officielle du projet
-
+```
 ## Prérequis
 
 Avant de lancer le projet, assurez-vous d'avoir installé les outils suivants sur votre machine :
